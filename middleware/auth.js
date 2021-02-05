@@ -1,22 +1,25 @@
 const moment = require('moment');
 const { ObjectId } = require('mongodb');
-const authMapping = require('./mapping')();
 
-module.exports = (role, models) => {
-    let action = undefined;
+module.exports = (models) => {
     return async (req, res, next) => {
+        console.log("http event:" + req.path);
+        const reqLocation = req.path.replace('/', '');
+        const authMapping = await require('./mapping')(models);
+        let action = authMapping[reqLocation];
+        let ma = undefined;
         if(req.session.hasOwnProperty('passport')) {
             if(req.session.passport.hasOwnProperty('user')) {
                 let user = await models.userModel.findOne({
                     _id: ObjectId(req.session.passport.user)
                 }).sort({_id: 1}).exec();
-                if(role.length !== 0) {
+                if(action.authRange.length !== 0) {
                     let found = false;
-                    role.forEach((tag) => {
+                    action.authRange.forEach((tag) => {
                         found = user.tags.find(tag);
                     });
                     if(found) {
-                        action = authMapping['authGranted'];
+                        ma = authMapping['authGranted'];
                         res.locals.status = {
                             title: '確認權限完成',
                             type: 3,
@@ -25,12 +28,13 @@ module.exports = (role, models) => {
                         await models.logModel.create({ 
                             tick: moment().unix(),
                             name: ObjectId(user._id),
-                            where: action.where,
-                            action: action.action + '需要權限：' + JSON.stringify(role) + '，確認權限完成'
+                            where: ma.where,
+                            action: ma.action + '需要權限：' + JSON.stringify(action.authRange) + '，確認權限完成'
                         });
                         next();
+                        return;
                     } else {
-                        action = authMapping['authNotGranted'];
+                        ma = authMapping['authNotGranted'];
                         res.locals.status = {
                             title: '無權限操作',
                             type: 1,
@@ -39,13 +43,14 @@ module.exports = (role, models) => {
                         await models.logModel.create({ 
                             tick: moment().unix(),
                             name: ObjectId(user._id),
-                            where: action.where,
-                            action: action.action + '需要權限：' + JSON.stringify(role) + '，無權限操作'
+                            where: ma.where,
+                            action: ma.action + '需要權限：' + JSON.stringify(action.authRange) + '，無權限操作'
                         });
                         next();
+                        return;
                     }
                 } else {
-                    action = authMapping['authGranted'];
+                    ma = authMapping['authGranted'];
                     res.locals.status = {
                         title: '無權限驗證完成',
                         type: 3,
@@ -54,13 +59,14 @@ module.exports = (role, models) => {
                     await models.logModel.create({ 
                         tick: moment().unix(),
                         name: ObjectId(user._id),
-                        where: action.where,
-                        action: action.action + '無權限驗證完成'
+                        where: ma.where,
+                        action: ma.action + '無權限驗證完成'
                     });
                     next();
+                    return;
                 }
             }
-            action = authMapping['authNotAccess'];
+            ma = authMapping['authNotAccess'];
             res.locals.status = {
                 title: '尚未登入',
                 type: 0,
@@ -68,13 +74,14 @@ module.exports = (role, models) => {
             };
             await models.logModel.create({ 
                 tick: moment().unix(),
-                name: ObjectId("60122c1fd1308739d0991523"),
-                where: action.where,
-                action: action.action
+                name: authMapping.nobodyAccount,
+                where: ma.where,
+                action: ma.action
             });
             next();
+            return;
         } else {
-            action = authMapping['authNotAccess'];
+            ma = authMapping['authPublicAccess'];
             res.locals.status = {
                 title: '尚未登入',
                 type: 0,
@@ -82,11 +89,12 @@ module.exports = (role, models) => {
             };
             await models.logModel.create({ 
                 tick: moment().unix(),
-                name: ObjectId("60122c1fd1308739d0991523"),
-                where: action.where,
-                action: action.action
+                name: authMapping.nobodyAccount,
+                where: ma.where,
+                action: ma.action
             });
             next();
+            return;
         }
     }
 }

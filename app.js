@@ -11,7 +11,6 @@ const mongoDB = 'mongodb://vrAdmin:cooc1234@localhost/videoReview';
 const MongoStore = require('connect-mongo')(session);
 const bcrypt = require('bcryptjs');
 const bodyParser = require('body-parser');
-const authMapping = require('./middleware/mapping')();
 const authSocket = require('./middleware/authSocket');
 const { ObjectId } = require('mongodb');
 let mongoPointer = false;
@@ -101,7 +100,9 @@ try {
             
             let backend = require('./routes/backend')(app, passport, {
                 userModel: userModel,
-                logModel: logModel
+                logModel: logModel,
+                robotModel: robotModel,
+                settingModel: settingModel
             });
             app.use('/backend', backend);
         }
@@ -109,7 +110,11 @@ try {
         io.on('connection', (socket) => {
             try {
                 socket.use(async ([event], next) => {
-                    await authSocket(socket, logModel, [event], next);
+                    await authSocket(socket, {
+                        logModel: logModel,
+                        userModel: userModel,
+                        robotModel: robotModel
+                    }, [event], next);
                 });
                 socket.emit('socketStatus', mongoose.connection.readyState === 1);
                 socket.on('dbStatus', () => {
@@ -129,7 +134,9 @@ try {
                     p2p: socket,
                     p2n: io
                 }, {
-                    userModel: userModel
+                    userModel: userModel,
+                    robotModel: robotModel,
+                    logModel: logModel
                 });
                 let settings = require('./routes/settings')({
                     p2p: socket,

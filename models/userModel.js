@@ -12,6 +12,9 @@ module.exports = function (mongoose) {
         unit: String,
         email: String,
         createDate: Number,
+        modDate: Number,
+        lineCode: String,
+        lineDate: Number,
         password: String
     }, { collection: 'userDB' });
     return mongoose.model('userModel', userSchema);

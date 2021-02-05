@@ -1,15 +1,15 @@
 const moment = require('moment');
 const { ObjectId } = require('mongodb');
-const authMapping = require('./mapping')();
 
-module.exports = async (socket, logModel, [event], next) => {
-    console.log(event);
+module.exports = async (socket, models, [event], next) => {
+    console.log("socket event:" + event);
+    const authMapping = await require('./mapping')(models);
     let action = authMapping[event];
     let ma = undefined;
     if(action.loginRequire) {
         if(socket.request.session.hasOwnProperty('passport')) {
-            if(socket.request.session.hasOwnProperty('user')) {
-                let user = await userModel.findOne({
+            if(socket.request.session.passport.hasOwnProperty('user')) {
+                let user = await models.userModel.findOne({
                     _id: ObjectId(socket.request.session.passport.user)
                 }).sort({_id: 1}).exec();
                 if(action.authRange.length !== 0) {
@@ -19,111 +19,96 @@ module.exports = async (socket, logModel, [event], next) => {
                     });
                     if(found) {
                         ma = authMapping['authGranted'];
+                        delete socket.request.session.status;
+                        socket.request.session.save();
                         socket.request.session.status = {
                             title: '確認權限完成',
                             type: 3,
                             tick: moment().unix()
                         };
                         socket.request.session.save();
-                        await logModel.create({ 
+                        await models.logModel.create({ 
                             tick: moment().unix(),
                             name: ObjectId(user._id),
                             where: ma.where,
                             action: ma.action + '需要權限：' + JSON.stringify(action.authRange) + '，確認權限完成'
                         });
-                        await logModel.create({ 
-                            tick: moment().unix(),
-                            name: ObjectId(user._id),
-                            where: action.where,
-                            action: action.action + '完成'
-                        });
                         next();
+                        return;
                     } else {
                         ma = authMapping['authNotGranted'];
+                        delete socket.request.session.status;
+                        socket.request.session.save();
                         socket.request.session.status = {
                             title: '無權限操作',
                             type: 1,
                             tick: moment().unix()
                         };
                         socket.request.session.save();
-                        await logModel.create({ 
+                        await models.logModel.create({ 
                             tick: moment().unix(),
                             name: ObjectId(user._id),
                             where: ma.where,
                             action: ma.action + '需要權限：' + JSON.stringify(action.authRange) + '，無權限操作'
                         });
-                        await logModel.create({ 
-                            tick: moment().unix(),
-                            name: ObjectId(user._id),
-                            where: action.where,
-                            action: action.action + '失敗'
-                        });
                         next();
+                        return;
                     }
                 } else {
                     ma = authMapping['authGranted'];
+                    delete socket.request.session.status;
+                    socket.request.session.save();
                     socket.request.session.status = {
                         title: '無權限驗證完成',
                         type: 3,
                         tick: moment().unix()
                     };
                     socket.request.session.save();
-                    await logModel.create({ 
+                    await models.logModel.create({ 
                         tick: moment().unix(),
                         name: ObjectId(user._id),
                         where: ma.where,
                         action: ma.action + '無權限驗證完成'
                     });
-                    await logModel.create({ 
-                        tick: moment().unix(),
-                        name: ObjectId(user._id),
-                        where: action.where,
-                        action: action.action + '完成'
-                    });
                     next();
+                    return;
                 }
             }
         }
         ma = authMapping['authNotAccess'];
+        delete socket.request.session.status;
+        socket.request.session.save();
         socket.request.session.status = {
             title: '尚未登入',
             type: 0,
             tick: moment().unix()
         };
         socket.request.session.save();
-        await logModel.create({ 
+        await models.logModel.create({ 
             tick: moment().unix(),
-            name: ObjectId("60122c1fd1308739d0991523"),
+            name: authMapping.nobodyAccount,
             where: ma.where,
             action: ma.action
         });
-        await logModel.create({ 
-            tick: moment().unix(),
-            name: ObjectId("60122c1fd1308739d0991523"),
-            where: action.where,
-            action: action.action + '(未登入模式)'
-        });
         next();
+        return;
     } else {
-        ma = authMapping['authNotAccess'];
+        ma = authMapping['authPublicAccess'];
+        delete socket.request.session.status;
+        socket.request.session.save();
         socket.request.session.status = {
             title: '尚未登入',
             type: 0,
             tick: moment().unix()
         };
         socket.request.session.save();
-        await logModel.create({ 
+        await models.logModel.create({ 
             tick: moment().unix(),
-            name: ObjectId("60122c1fd1308739d0991523"),
+            name: authMapping.nobodyAccount,
             where: ma.where,
             action: ma.action
         });
-        await logModel.create({ 
-            tick: moment().unix(),
-            name: ObjectId("60122c1fd1308739d0991523"),
-            where: action.where,
-            action: action.action + '(未登入模式)'
-        });
         next();
+        return;
     }
 }

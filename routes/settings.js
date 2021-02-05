@@ -2,13 +2,13 @@ let express = require('express');
 let router = express.Router();
 let moment = require('moment');
 const { ObjectId } = require('mongodb');
-const authMapping = require('../middleware/mapping')();
 
-module.exports = (io, schemaObj) => {
+module.exports = (io, models) => {
   io.p2p.on('getGlobalSettings', async (data) => {
+    let authMapping = await require('../middleware/mapping')(models);
     let auth = authMapping['getGlobalSettings'];
     if(io.p2p.request.session.status.type === 3) {
-      let globalSetting = await schemaObj.settingModel.findOne({}).sort({_id: 1}).populate({
+      let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).populate({
         path: 'settingTags',
         path: 'userTags',
         path: 'projectTags'
@@ -23,28 +23,32 @@ module.exports = (io, schemaObj) => {
       });
     }
   });
+
   io.p2p.on('getRobotSetting', async (data) => {
-    console.log('aaa');
+    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
-      let robotSetting = await schemaObj.robotModel.findOne({}).sort({_id: 1}).exec();
+      let robotSetting = await models.robotModel.findOne({}).sort({_id: 1}).exec();
       io.p2p.emit('getRobotSetting', robotSetting);
     }
   });
+
   io.p2p.on('getProjectSetting', async (data) => {
+    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
-      let projectSetting = await schemaObj.projectModel.findOne({}).sort({_id: 1}).exec();
+      let projectSetting = await models.projectModel.findOne({}).sort({_id: 1}).exec();
       io.p2p.emit('getProjectSetting', projectSetting);
     }
   });
   io.p2p.on('setsettingTags', async (data) => {
+    let authMapping = await require('../middleware/mapping')(models);
     let tagidArray = new Array();
     for (let i=0; i<data.length; i++) {
-      let tag = await schemaObj.tagModel.findOne({
+      let tag = await models.tagModel.findOne({
         name: data[i]
       }).sort({_id: 1}).exec();
       tagidArray.push(ObjectId(tag._id));
       if(tag === null) {
-        tag = await schemaObj.tagModel.create({ 
+        tag = await models.tagModel.create({ 
           name: data[i],
           tick: moment().unix()
         });

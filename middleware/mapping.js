@@ -1,8 +1,16 @@
-module.exports = () => {
+module.exports = async (models) => {
+    let robotSettings = await models.robotModel.findOne({}).sort({_id: 1}).exec();
     return  {
+        nobodyAccount: robotSettings.nobodyAccount,
         dbStatus: {
             action: '資料庫檢查',
             where: '同步檢查模組',
+            authRange: [],
+            loginRequire: false
+        },
+        login: {
+            action: '登入',
+            where: '登入模組',
             authRange: [],
             loginRequire: false
         },
@@ -42,6 +50,12 @@ module.exports = () => {
             authRange: [],
             loginRequire: true
         },
+        authPublicAccess: { //無登入需求就會得到這個
+            action: '公開權限',
+            where: '驗證模組',
+            authRange: [],
+            loginRequire: true
+        },
         getGlobalSettings: {
             action: '取得全域設定',
             where: '設定模組',
@@ -65,6 +79,30 @@ module.exports = () => {
             where: '標籤模組',
             authRange: [],
             loginRequire: false
-        }
+        },
+        createUser: {
+            action: '建立帳號',
+            where: '帳號模組',
+            authRange: [],
+            loginRequire: true
+        },
+        getCurrentUser: {
+            action: '查詢當前使用者',
+            where: '帳號模組',
+            authRange: [],
+            loginRequire: false
+        },
+        setCurrentUser: {
+            action: '設定當前使用者',
+            where: '帳號模組',
+            authRange: [],
+            loginRequire: true
+        },
+        lineNotify: {
+            action: 'LINE Notify綁定',
+            where: '帳號模組',
+            authRange: [],
+            loginRequire: false
+        },
     }
 }

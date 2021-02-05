@@ -1,14 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const log = require('../middleware/log');
 const { ObjectId } = require('mongodb');
 const moment = require('moment');
-const authMapping = require('../middleware/mapping')();
 
 /* GET users listing. */
 module.exports = (app, passport, models) => {
-  router.post('/login', auth([], models), (req, res, next) => {
-    console.log(JSON.stringify(res.locals.status));
+  router.post('/login', auth(models), (req, res, next) => {
     if(res.locals.status.type === 0) {
       passport.authenticate('local', {
         successRedirect: '/backend/loginSuccess',
@@ -22,43 +21,50 @@ module.exports = (app, passport, models) => {
       loginStatus: 2
     });
   });
-  router.post('/logout', auth([], models), async (req, res) => {
-    let action = authMapping['logout'];
-    await models.logModel.create({ 
-      tick: moment().unix(),
-      name: req.session.passport.user,
-      where: action.where,
-      action: action.action
-    });
+  router.post('/logout', auth(models), log({
+    models: models,
+    user: true,
+    action: 'logout'
+  }), (req, res) => {
     req.logout();
     res.json({
       loginStatus: 1,
     });
   });
-  router.get('/loginSuccess', auth([], models), async (req, res, next) => {
-    let action = authMapping['loginSuccess'];
-    await models.logModel.create({ 
-      tick: moment().unix(),
-      name: req.session.passport.user,
-      where: action.where,
-      action: action.action
-    });
+  router.get('/loginSuccess', auth(models), log({
+    models: models,
+    user: true,
+    action: 'loginSuccess'
+  }), (req, res) => {
     req.session.save();
     res.json({
       loginStatus: 1,
     });
   });
-  router.get('/loginFail', auth([], models), async (req, res, next) => {
-    let action = authMapping['loginFail'];
-    await models.logModel.create({ 
-      tick: moment().unix(),
-      name: ObjectId("60122c1fd1308739d0991523"),
-      where: action.where,
-      action: action.action
-    });
+  router.get('/loginFail', auth(models), log({
+    models: models,
+    user: false,
+    action: 'loginFail'
+  }), (req, res) => {
     res.json({
       loginStatus: 0
     });
   });
+  
+  router.get('/lineNotify', auth(models), log({
+    models: models,
+    user: false,
+    action: 'lineNotify'
+  }), async (req, res) => {
+    let user = await models.userModel.findOne({
+      _id: ObjectId(req.session.passport.user)
+    }).sort({_id: 1}).exec();
+    user.lineCode = req.query.code;
+    user.lineDate = moment().unix();
+    user.modDate = moment().unix();
+    await user.save();
+    res.send("[" + moment.unix(user.lineDate).format("YYYY-MM-DD HH:mm:ss") + "] LINE Notify綁定完成，您的帳號是：" + user.name + "，請關閉本視窗");
+  });
+
   return router;
 }
