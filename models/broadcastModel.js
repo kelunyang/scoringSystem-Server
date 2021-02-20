@@ -2,22 +2,20 @@ const { ObjectID } = require("mongodb");
 
 module.exports = function (mongoose) {
     let schema = mongoose.Schema;
-    let systemmessageSchema = new schema({
-        type: Number,
+    let broadcastSchema = new schema({
         tick: Number,
         title: String,
         body: String,
-        status: Boolean,
-        user: {
+        sender: {
             type: ObjectID,
             ref: "userModel"
         },
-        attachments: [
+        recievers: [
             {
                 type: ObjectID,
-                ref: "fileModel"
+                ref: "userModel"
             }
         ]
-    }, { collection: 'systemMessages' });
-    return mongoose.model('systemmessageModel', systemmessageSchema);
+    }, { collection: 'broadcastDB' });
+    return mongoose.model('broadcastModel', broadcastSchema);
 }

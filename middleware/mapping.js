@@ -104,5 +104,101 @@ module.exports = async (models) => {
             authRange: [],
             loginRequire: false
         },
+        sendLINEnotify: {
+            action: 'LINE Notify發送',
+            where: 'LINE模組',
+            authRange: [],
+            loginRequire: true
+        },
+        getLINElog: {
+            action: 'LINE Notify紀錄',
+            where: 'LINE模組',
+            authRange: [],
+            loginRequire: true
+        },
+        addTag: {
+            action: '新增標籤',
+            where: '標籤模組',
+            authRange: [],
+            loginRequire: true
+        },
+        setSetting: {
+            action: '修改系統設定',
+            where: '設定模組',
+            authRange: [],
+            loginRequire: true
+        },
+        getRobotUsers: {
+            action: '取得機器人使用者',
+            where: '使用者模組',
+            authRange: [],
+            loginRequire: true
+        },
+        sendMsgFile: {
+            action: '新增公告附件檔案',
+            where: '檔案模組',
+            authRange: [],
+            loginRequire: true
+        },
+        deleteMsgFile: {
+            action: '刪除公告附件檔案',
+            where: '檔案模組',
+            authRange: [],
+            loginRequire: true
+        },
+        addMsg: {
+            action: '新增訊息',
+            where: '訊息模組',
+            authRange: [],
+            loginRequire: true
+        },
+        getMessage: {
+            action: '取得訊息',
+            where: '訊息模組',
+            authRange: [],
+            loginRequire: true
+        },
+        saveMessage: {
+            action: '儲存訊息',
+            where: '訊息模組',
+            authRange: [],
+            loginRequire: true
+        },
+        removeMessage: {
+            action: '刪除訊息',
+            where: '訊息模組',
+            authRange: [],
+            loginRequire: true
+        },
+        getAttachment: {
+            action: '取得附件列表',
+            where: '訊息模組',
+            authRange: [],
+            loginRequire: true
+        },
+        getMessages: {
+            action: '取得訊息列表',
+            where: '訊息模組',
+            authRange: [],
+            loginRequire: true
+        },
+        getbroadcastLog: {
+            action: '取得全域廣播列表',
+            where: '訊息模組',
+            authRange: [],
+            loginRequire: true
+        },
+        sendBroadcast: {
+            action: '發送全域廣播',
+            where: '訊息模組',
+            authRange: [],
+            loginRequire: true
+        },
+        getIndexMessages: {
+            action: '取得首頁三公告',
+            where: '訊息模組',
+            authRange: [],
+            loginRequire: false
+        }
     }
 }

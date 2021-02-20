@@ -17,6 +17,7 @@ module.exports = function (mongoose) {
         LINESecretKey: String,
         robotDeadLine: Number,
         reportDuration: Number,
+        patrolHour: Number,
         LastPatrol: Number,
         tick: Number
     }, { collection: 'robotSettings' });

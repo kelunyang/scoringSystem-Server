@@ -15,6 +15,7 @@ module.exports = function (mongoose) {
         modDate: Number,
         lineCode: String,
         lineDate: Number,
+        lineToken: String,
         password: String
     }, { collection: 'userDB' });
     return mongoose.model('userModel', userSchema);

@@ -30,7 +30,7 @@ module.exports = async (socket, models, [event], next) => {
                         await models.logModel.create({ 
                             tick: moment().unix(),
                             name: ObjectId(user._id),
-                            where: ma.where,
+                            where: action.where,
                             action: ma.action + '需要權限：' + JSON.stringify(action.authRange) + '，確認權限完成'
                         });
                         next();
@@ -48,7 +48,7 @@ module.exports = async (socket, models, [event], next) => {
                         await models.logModel.create({ 
                             tick: moment().unix(),
                             name: ObjectId(user._id),
-                            where: ma.where,
+                            where: action.where,
                             action: ma.action + '需要權限：' + JSON.stringify(action.authRange) + '，無權限操作'
                         });
                         next();
@@ -67,7 +67,7 @@ module.exports = async (socket, models, [event], next) => {
                     await models.logModel.create({ 
                         tick: moment().unix(),
                         name: ObjectId(user._id),
-                        where: ma.where,
+                        where: action.where,
                         action: ma.action + '無權限驗證完成'
                     });
                     next();
@@ -87,7 +87,7 @@ module.exports = async (socket, models, [event], next) => {
         await models.logModel.create({ 
             tick: moment().unix(),
             name: authMapping.nobodyAccount,
-            where: ma.where,
+            where: action.where,
             action: ma.action
         });
         next();
@@ -105,7 +105,7 @@ module.exports = async (socket, models, [event], next) => {
         await models.logModel.create({ 
             tick: moment().unix(),
             name: authMapping.nobodyAccount,
-            where: ma.where,
+            where: action.where,
             action: ma.action
         });
         next();

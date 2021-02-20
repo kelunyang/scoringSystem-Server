@@ -21,6 +21,10 @@ module.exports = function (mongoose) {
                 ref: "tagModel"
             }
         ],
+        robotTag: {
+            type: ObjectID,
+            ref: "tagModel"
+        },
         tick: Number
     }, { collection: 'globalSettings' });
     return mongoose.model('globalModel', globalSettingSchema);

@@ -23,6 +23,21 @@ const systemmessageModel = require('./models/messageModel')(mongoose);
 const tagModel = require('./models/tagModel')(mongoose);
 const userModel = require('./models/userModel')(mongoose);
 const logModel = require('./models/logModel')(mongoose);
+const lineModel = require('./models/lineModel')(mongoose);
+const broadcastModel = require('./models/broadcastModel')(mongoose);
+const fileModel = require('./models/fileModel')(mongoose);
+const modelList = {
+    messageModel: systemmessageModel,
+    logModel: logModel,
+    settingModel: settingModel,
+    projectModel: projectModel,
+    robotModel: robotModel,
+    userModel: userModel,
+    tagModel: tagModel,
+    lineModel: lineModel,
+    fileModel: fileModel,
+    broadcastModel: broadcastModel
+};
 
 //掛載socketio, 啟動express
 const app = require('express')();
@@ -98,23 +113,14 @@ try {
                 })
             })
             
-            let backend = require('./routes/backend')(app, passport, {
-                userModel: userModel,
-                logModel: logModel,
-                robotModel: robotModel,
-                settingModel: settingModel
-            });
+            let backend = require('./routes/backend')(app, passport, modelList);
             app.use('/backend', backend);
         }
         
         io.on('connection', (socket) => {
             try {
                 socket.use(async ([event], next) => {
-                    await authSocket(socket, {
-                        logModel: logModel,
-                        userModel: userModel,
-                        robotModel: robotModel
-                    }, [event], next);
+                    await authSocket(socket, modelList, [event], next);
                 });
                 socket.emit('socketStatus', mongoose.connection.readyState === 1);
                 socket.on('dbStatus', () => {
@@ -133,38 +139,29 @@ try {
                 let users = require('./routes/users')({
                     p2p: socket,
                     p2n: io
-                }, {
-                    userModel: userModel,
-                    robotModel: robotModel,
-                    logModel: logModel
-                });
+                }, modelList);
                 let settings = require('./routes/settings')({
                     p2p: socket,
                     p2n: io
-                }, {
-                    settingModel: settingModel,
-                    projectModel: projectModel,
-                    robotModel: robotModel,
-                    tagModel: tagModel
-                });
+                }, modelList);
                 let tags = require('./routes/tags')({
                     p2p: socket,
                     p2n: io
-                }, {
-                    tagModel: tagModel
-                });
+                }, modelList);
                 let message = require('./routes/message')({
                     p2p: socket,
                     p2n: io
-                }, {
-                    messageModel: systemmessageModel,
-                    userModel: userModel
-                });
+                }, modelList);
+                let file = require('./routes/file')({
+                    p2p: socket,
+                    p2n: io
+                }, modelList);
                 app.use('/', index);
                 app.use('/users', users);
                 app.use('/settings', settings);
                 app.use('/message', message);
                 app.use('/tags', tags);
+                app.use('/file', file);
             } catch (e) {
                 socket.emit('error', {
                     title: e.title,
