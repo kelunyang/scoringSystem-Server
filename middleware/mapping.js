@@ -1,5 +1,8 @@
+let _ = require('lodash');
+
 module.exports = async (models) => {
     let robotSettings = await models.robotModel.findOne({}).sort({_id: 1}).exec();
+    let setting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
     return  {
         nobodyAccount: robotSettings.nobodyAccount,
         dbStatus: {
@@ -88,7 +91,7 @@ module.exports = async (models) => {
         },
         getCurrentUser: {
             action: '查詢當前使用者',
-            where: '帳號模組',
+            where: '同步檢查模組',
             authRange: [],
             loginRequire: false
         },
@@ -125,31 +128,31 @@ module.exports = async (models) => {
         setSetting: {
             action: '修改系統設定',
             where: '設定模組',
-            authRange: [],
+            authRange: setting.settingTags,
             loginRequire: true
         },
         getRobotUsers: {
             action: '取得機器人使用者',
             where: '使用者模組',
-            authRange: [],
+            authRange: setting.settingTags,
             loginRequire: true
         },
         sendMsgFile: {
             action: '新增公告附件檔案',
             where: '檔案模組',
-            authRange: [],
+            authRange: _.flatten(setting.settingTags, setting.userTags),
             loginRequire: true
         },
         deleteMsgFile: {
             action: '刪除公告附件檔案',
             where: '檔案模組',
-            authRange: [],
+            authRange: _.flatten(setting.settingTags, setting.userTags),
             loginRequire: true
         },
         addMsg: {
             action: '新增訊息',
             where: '訊息模組',
-            authRange: [],
+            authRange: _.flatten(setting.settingTags, setting.userTags),
             loginRequire: true
         },
         getMessage: {
@@ -161,16 +164,16 @@ module.exports = async (models) => {
         saveMessage: {
             action: '儲存訊息',
             where: '訊息模組',
-            authRange: [],
+            authRange: _.flatten(setting.settingTags, setting.userTags),
             loginRequire: true
         },
         removeMessage: {
             action: '刪除訊息',
             where: '訊息模組',
-            authRange: [],
+            authRange: _.flatten(setting.settingTags, setting.userTags),
             loginRequire: true
         },
-        getAttachment: {
+        getmsgAttachment: {
             action: '取得附件列表',
             where: '訊息模組',
             authRange: [],
@@ -191,7 +194,7 @@ module.exports = async (models) => {
         sendBroadcast: {
             action: '發送全域廣播',
             where: '訊息模組',
-            authRange: [],
+            authRange: _.flatten(setting.settingTags, setting.userTags),
             loginRequire: true
         },
         getIndexMessages: {
@@ -199,6 +202,180 @@ module.exports = async (models) => {
             where: '訊息模組',
             authRange: [],
             loginRequire: false
+        },
+        getUsers: {
+            action: '取得使用者列表',
+            where: '使用者模組',
+            authRange: _.flatten(setting.settingTags, setting.userTags),
+            loginRequire: true
+        },
+        modUserTags: {
+            action: '修改使用者的用戶標籤',
+            where: '使用者模組',
+            authRange: _.flatten(setting.settingTags, setting.userTags),
+            loginRequire: true
+        },
+        removeUser: {
+            action: '刪除使用者',
+            where: '使用者模組',
+            authRange: _.flatten(setting.settingTags, setting.userTags),
+            loginRequire: true
+        },
+        createUsers: {
+            action: '新增使用者',
+            where: '使用者模組',
+            authRange: _.flatten(setting.settingTags, setting.userTags),
+            loginRequire: true
+        },
+        passwordReset: {
+            action: '重置用戶密碼',
+            where: '使用者模組',
+            authRange: _.flatten(setting.settingTags, setting.userTags),
+            loginRequire: true
+        },
+        modUsers: {
+            action: '修改用戶',
+            where: '使用者模組',
+            authRange: _.flatten(setting.settingTags, setting.userTags),
+            loginRequire: true
+        },
+        checkTagUsers: {
+            action: '標籤內的用戶數量',
+            where: '標籤模組',
+            authRange: _.flatten(setting.settingTags, setting.userTags),
+            loginRequire: true
+        },
+        passwordClientReset: {
+            action: '用戶端重置密碼',
+            where: '使用者模組',
+            authRange: [],
+            loginRequire: false
+        },
+        getsiteSetting: {
+            action: '用戶端取得全站設定',
+            where: '同步檢查模組',
+            authRange: [],
+            loginRequire: false
+        },
+        checkEmail: {
+            action: '檢查Email是否重複',
+            where: '使用者模組',
+            authRange: _.flatten(setting.settingTags, setting.userTags),
+            loginRequire: true
+        },
+        setEmail: {
+            action: '設定用戶的新Email',
+            where: '使用者模組',
+            authRange: _.flatten(setting.settingTags, setting.userTags),
+            loginRequire: true
+        },
+        getAuthLevel: {
+            action: '查詢用戶權限',
+            where: '同步檢查模組',
+            authRange: [],
+            loginRequire: false
+        },
+        /*getTagUsers: {
+            action: '查詢標籤內的用戶',
+            where: '標籤模組',
+            authRange: _.flatten(setting.settingTags, setting.userTags, setting.projectTags),
+            loginRequire: true
+        },*/
+        getsiteAdminUsers: {
+            action: '查詢系統管理群',
+            where: '標籤模組',
+            authRange: [],
+            loginRequire: true
+        },
+        getfeedbackList: {
+            action: '取得用戶回饋列表',
+            where: '用戶回饋模組',
+            authRange: [],
+            loginRequire: true
+        },
+        getFeedback: {
+            action: '取得用戶回饋',
+            where: '用戶回饋模組',
+            authRange: [],
+            loginRequire: true
+        },
+        userAlived: {
+            action: '確認用戶狀態',
+            where: '登入模組',
+            authRange: [],
+            loginRequire: true
+        },
+        deletefeedbackFile: {
+            action: '刪除用戶回饋附件',
+            where: '檔案模組',
+            authRange: [],
+            loginRequire: true
+        },
+        sendfeedbackFile: {
+            action: '新增用戶回饋附件',
+            where: '檔案模組',
+            authRange: [],
+            loginRequire: true
+        },
+        addFeedback: {
+            action: '新增用戶回饋',
+            where: '用戶回饋模組',
+            authRange: [],
+            loginRequire: true
+        },
+        editFeedback: {
+            action: '新增用戶回饋',
+            where: '用戶回饋模組',
+            authRange: [],
+            loginRequire: true
+        },
+        setFeedback: {
+            action: '修改用戶回饋',
+            where: '用戶回饋模組',
+            authRange: [],
+            loginRequire: true
+        },
+        setStatus: {
+            action: '修改用戶回饋狀態',
+            where: '用戶回饋模組',
+            authRange: [],
+            loginRequire: true
+        },
+        setRating: {
+            action: '修改用戶回饋評分',
+            where: '用戶回饋模組',
+            authRange: [],
+            loginRequire: true
+        },
+        setAgree: {
+            action: '用戶回饋加入同意',
+            where: '用戶回饋模組',
+            authRange: _.flatten(setting.settingTags, setting.userTags),
+            loginRequire: true
+        },
+        removeFeedback: {
+            action: '刪除用戶回饋',
+            where: '用戶回饋模組',
+            authRange: _.flatten(setting.settingTags, setting.userTags),
+            loginRequire: true
+        },
+        getfeedbackAttachment: {
+            action: '取得用戶回饋附件',
+            where: '用戶回饋模組',
+            authRange: [],
+            loginRequire: true
+        },
+        getConcurrentUsers: {
+            action: '取得同時線上用戶',
+            where: '同步檢查模組',
+            authRange: [],
+            loginRequire: true
+        },
+        incommingChat: {
+            action: '發送聊天訊息',
+            where: '同步檢查模組',
+            authRange: [],
+            loginRequire: true
         }
     }
 }

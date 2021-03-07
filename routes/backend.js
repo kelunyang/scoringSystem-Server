@@ -40,6 +40,7 @@ module.exports = (app, passport, models) => {
     user: true,
     action: 'loginSuccess'
   }), (req, res) => {
+    req.session.broadcastLogin = true;
     req.session.save();
     res.json({
       loginStatus: 1,

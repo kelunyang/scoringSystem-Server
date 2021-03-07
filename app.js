@@ -14,6 +14,8 @@ const bodyParser = require('body-parser');
 const authSocket = require('./middleware/authSocket');
 const { ObjectId } = require('mongodb');
 let mongoPointer = false;
+let userAlived = false;
+let oriobj = this;
 
 //model
 const settingModel = require('./models/globalModel')(mongoose);
@@ -26,6 +28,9 @@ const logModel = require('./models/logModel')(mongoose);
 const lineModel = require('./models/lineModel')(mongoose);
 const broadcastModel = require('./models/broadcastModel')(mongoose);
 const fileModel = require('./models/fileModel')(mongoose);
+const feedbackModel = require('./models/feedbackModel')(mongoose);
+const activeuserModel = require('./models/activeuserModel')(mongoose);
+const sessionModel = require('./models/sessionModel')(mongoose);
 const modelList = {
     messageModel: systemmessageModel,
     logModel: logModel,
@@ -36,7 +41,10 @@ const modelList = {
     tagModel: tagModel,
     lineModel: lineModel,
     fileModel: fileModel,
-    broadcastModel: broadcastModel
+    broadcastModel: broadcastModel,
+    feedbackModel: feedbackModel,
+    activeuserModel: activeuserModel,
+    sessionModel: sessionModel
 };
 
 //掛載socketio, 啟動express
@@ -117,8 +125,36 @@ try {
             app.use('/backend', backend);
         }
         
-        io.on('connection', (socket) => {
+        io.on('connection', async (socket) => {
             try {
+                let globalSetting = await modelList.settingModel.findOne({}).sort({_id: 1}).exec();
+                let connectionTimeout = globalSetting === null || globalSetting == undefined ? 2 : globalSetting.connectionTimeout;
+                let userAlived = true;
+                socket.on("disconnect", () => {
+                    userAlived = false;
+                    socket.emit('userAlived');
+                    setTimeout(async () => {
+                        if(!userAlived) {
+                            await modelList.activeuserModel.deleteOne({
+                                socketio: socket.id,
+                                session: socket.request.sessionID
+                            }).exec();
+                            let connections = modelList.activeuserModel.find({
+                                session: socket.request.sessionID
+                            }).exec();
+                            if(connections.length === 0) {
+                                await modelList.sessionModel.deleteOne({
+                                    _id: new ObjectId(socket.request.sessionID)
+                                }).exec();
+                            }
+                            socket.emit('userDied');
+                            return; //結束程式
+                        }
+                    }, connectionTimeout * 1000)
+                });
+                socket.on("userAlived", () => {
+                    userAlived = true;
+                });
                 socket.use(async ([event], next) => {
                     await authSocket(socket, modelList, [event], next);
                 });
@@ -156,12 +192,17 @@ try {
                     p2p: socket,
                     p2n: io
                 }, modelList);
+                let feedback = require('./routes/feedback')({
+                    p2p: socket,
+                    p2n: io
+                }, modelList);
                 app.use('/', index);
                 app.use('/users', users);
                 app.use('/settings', settings);
                 app.use('/message', message);
                 app.use('/tags', tags);
                 app.use('/file', file);
+                app.use('/feedback', feedback);
             } catch (e) {
                 socket.emit('error', {
                     title: e.title,

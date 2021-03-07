@@ -5,6 +5,9 @@ module.exports = function (mongoose) {
     let robotSchema = new schema({
         mailAccount: String,
         mailPassword: String,
+        mailSMTP: String,
+        mailPort: Number,
+        mailSSL: Boolean,
         nobodyAccount: {
             type: ObjectID,
             ref: "userModel"

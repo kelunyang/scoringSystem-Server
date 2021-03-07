@@ -1,18 +1,55 @@
 const express = require('express');
 const router = express.Router();
 const moment = require('moment');
-const { ObjectId } = require('mongodb');
+const { ObjectId, connect } = require('mongodb');
 const fs = require('fs-extra');
 
 module.exports = (io, models) => {
+  io.p2p.on('incommingChat', async (data) => {
+    let authMapping = await require('../middleware/mapping')(models);
+    if(io.p2p.request.session.status.type === 3) {
+      let userId = new ObjectId(io.p2p.request.session.passport.user);
+      let receiverId = new ObjectId(data.receiver);
+      if(!userId.equals(receiverId)) {
+        let now = moment().unix();
+        let user = await models.userModel.findOne({
+          _id: userId
+        }).exec();
+        let receiver = await models.userModel.findOne({
+          _id: receiverId
+        }).exec();
+        let receiveSockets = await models.activeuserModel.find({
+          user: receiverId
+        }).exec();
+        io.p2p.emit('ccChat', {
+          from: user,
+          to: receiver,
+          tick: now,
+          body: data.body
+        });
+        for(let i = 0; i < receiveSockets.length; i++) {
+          let connection = receiveSockets[i];
+          io.p2n.to(connection.socketio).emit('incommingChat', {
+            from: user,
+            to: receiver,
+            tick: now,
+            body: data.body
+          });
+        }
+      }
+    }
+  });
+
   io.p2p.on('getLINElog', async (data) => {
     let authMapping = await require('../middleware/mapping')(models);
     let auth = authMapping['getLINElog'];
     if(io.p2p.request.session.status.type === 3) {
       let lineDB = await models.lineModel.find({}).sort({_id: 1}).populate({
         path: 'log',
-        populate: { path: 'uid' }
-      }).exec();
+        populate: { 
+          path: 'uid',
+          select: '-password -lineToken -lineCode' }
+        }).exec();
       io.p2p.emit('getLINElog', lineDB);
     } else {
       io.p2p.emit('accessViolation', {
@@ -28,7 +65,22 @@ module.exports = (io, models) => {
     let authMapping = await require('../middleware/mapping')(models);
     let auth = authMapping['sendLINEnotify'];
     if(io.p2p.request.session.status.type === 3) {
-      let users = await models.userModel.find({}).sort({_id: 1}).exec();
+      let users = null;
+      if(data.type === 0) { users = await models.userModel.find({}).sort({_id: 1}).exec(); }
+      if(data.type === 1) {
+        let setting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+        users = [];
+        for(let i = 0; i < setting.settingTags.length; i++) {
+          let tag = setting.settingTags[i];
+          let usersQ = await models.userModel.find({
+            tags: tag
+          }).exec();
+          for(let k = 0; k < usersQ.length; k++) {
+            let user = usersQ[k];
+            users.push(user);
+          }
+        }
+      }
       let successArray = new Array();
       let success = 0;
       let failed = 0;
@@ -93,7 +145,7 @@ module.exports = (io, models) => {
   io.p2p.on('sendBroadcast', async (data) => {
     let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
-      io.p2n.emit('messageBroadcast', {
+      io.p2n.in("activeUsers").emit('messageBroadcast', {
         title: data.title,
         body: data.body
       });
@@ -112,8 +164,8 @@ module.exports = (io, models) => {
     let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       var collection = await models.broadcastModel.find({}).sort({tick: -1})
-      .populate('recievers')
-      .populate('sender').exec();
+      .populate('recievers', '-password -lineToken -lineCode')
+      .populate('sender', '-password -lineToken -lineCode').exec();
       io.p2p.emit('getbroadcastLog', collection);
     }
   });
@@ -127,6 +179,7 @@ module.exports = (io, models) => {
       .populate('attachments')
       .populate({
         path: 'user',
+        select: '-password -lineToken -lineCode',
         populate: { path: 'tags' }
       }).exec();
       io.p2p.emit('getMessage', collection);
@@ -140,7 +193,10 @@ module.exports = (io, models) => {
       .populate('attachments')
       .populate({
         path: 'user',
+        select: '-password -lineToken -lineCode',
         populate: { path: 'tags' }
+      }).sort({
+        tick: -1
       }).exec();
       io.p2p.emit('getMessages', collection);
     }
@@ -154,6 +210,7 @@ module.exports = (io, models) => {
     .populate('attachments')
     .populate({
       path: 'user',
+      select: '-password -lineToken -lineCode',
       populate: { path: 'tags' }
     }).exec();
     var maintainMsg = await models.messageModel.findOne({
@@ -163,6 +220,7 @@ module.exports = (io, models) => {
     .populate('attachments')
     .populate({
       path: 'user',
+      select: '-password -lineToken -lineCode',
       populate: { path: 'tags' }
     }).exec();
     var criticalMsg = await models.messageModel.findOne({
@@ -172,6 +230,7 @@ module.exports = (io, models) => {
     .populate('attachments')
     .populate({
       path: 'user',
+      select: '-password -lineToken -lineCode',
       populate: { path: 'tags' }
     }).exec();
     let returnArr = [];
@@ -181,7 +240,7 @@ module.exports = (io, models) => {
     io.p2p.emit('getIndexMessages', returnArr);
   });
 
-  io.p2p.on('getAttachment', async (data) => {
+  io.p2p.on('getmsgAttachment', async (data) => {
     let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       var collection = await models.messageModel.findOne({
@@ -190,9 +249,10 @@ module.exports = (io, models) => {
       .populate('attachments')
       .populate({
         path: 'user',
+        select: '-password -lineToken -lineCode',
         populate: { path: 'tags' }
       }).exec();
-      io.p2p.emit('getAttachment', collection.attachments);
+      io.p2p.emit('getmsgAttachment', collection.attachments);
     }
   });
 
@@ -212,7 +272,10 @@ module.exports = (io, models) => {
       .populate('attachments')
       .populate({
         path: 'user',
+        select: '-password -lineToken -lineCode',
         populate: { path: 'tags' }
+      }).sort({
+        tick: -1
       }).exec();
       io.p2p.emit('getMessages', collection);
       io.p2p.emit('saveMessage', true);
@@ -223,15 +286,15 @@ module.exports = (io, models) => {
     let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       var message = await models.messageModel.findOne({
-        _id: data
+        _id: new ObjectId(data)
       }).exec();
       let errorlog = 0;
       for(let i=0;i<message.attachments.length;i++) {
         try {
-          let file = message.attachments[i].toString();
+          let file = message.attachments[i];
           await fs.remove('/var/www/frontend/storages/' + file);
           fileObj = await models.fileModel.deleteOne({
-            _id: file
+            _id: new ObjectId(file)
           }).exec();
         } catch (err) {
           errorlog++;
@@ -239,14 +302,17 @@ module.exports = (io, models) => {
       }
       if(errorlog === 0) {
         var message = await models.messageModel.deleteOne({
-          _id: data
+          _id: new ObjectId(data)
         }).exec();
         io.p2p.emit('removeMessage', true);
         var collection = await models.messageModel.find({}).sort({tick: -1})
         .populate('attachments')
         .populate({
           path: 'user',
+          select: '-password -lineToken -lineCode',
           populate: { path: 'tags' }
+        }).sort({
+          tick: -1
         }).exec();
         io.p2p.emit('getMessages', collection);
       } else {

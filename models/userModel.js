@@ -16,7 +16,8 @@ module.exports = function (mongoose) {
         lineCode: String,
         lineDate: Number,
         lineToken: String,
-        password: String
+        password: String,
+        firstRun: Boolean
     }, { collection: 'userDB' });
     return mongoose.model('userModel', userSchema);
 }

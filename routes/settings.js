@@ -6,6 +6,18 @@ let qs = require('qs');
 const { ObjectId } = require('mongodb');
 
 module.exports = (io, models) => {
+  io.p2p.on('getsiteSetting', async (data) => {
+    let authMapping = await require('../middleware/mapping')(models);
+    let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+    io.p2p.emit('getsiteSetting', {
+      siteLocation: globalSetting.siteLocation,
+      version: globalSetting.version,
+      changeLog: globalSetting.changeLog,
+      userCheckTime: globalSetting.userCheckTime,
+      connectionTimeout: globalSetting.connectionTimeout
+    });
+  });
+
   io.p2p.on('getGlobalSettings', async (data) => {
     let authMapping = await require('../middleware/mapping')(models);
     let auth = authMapping['getGlobalSettings'];
@@ -46,6 +58,11 @@ module.exports = (io, models) => {
       gSetting.userTags = data.selectedUsrTags.length > 0 ? data.selectedUsrTags : gSetting.userTags;
       gSetting.projectTags = data.selectedflowTags.length > 0 ? data.selectedflowTags : gSetting.projectTags;
       gSetting.robotTag = data.selectedrobotTag === '' ? gSetting.robotTag : data.selectedrobotTag;
+      gSetting.siteLocation = data.siteLocation;
+      gSetting.version = data.version;
+      gSetting.changeLog = data.changeLog;
+      gSetting.userCheckTime = data.userCheckTime;
+      gSetting.connectionTimeout = data.connectionTimeout;
       gSetting.tick = moment().unix();
       await gSetting.save();
       let rSetting = await models.robotModel.findOne({}).sort({_id: 1}).exec();
@@ -57,7 +74,10 @@ module.exports = (io, models) => {
       rSetting.LINESecretKey = data.LINESecretKey;
       rSetting.robotDeadLine = data.robotDeadLine;
       rSetting.reportDuration = data.reportDuration;
+      rSetting.mailSMTP = data.mailSMTP;
+      rSetting.mailPort = data.mailPort;
       rSetting.patrolHour = data.patrolHour;
+      rSetting.mailSSL = data.mailSSL;
       await rSetting.save();
       io.p2p.emit('setSetting', true);
       let robotSetting = await models.robotModel.findOne({}).sort({_id: 1}).exec();

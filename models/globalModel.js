@@ -25,7 +25,12 @@ module.exports = function (mongoose) {
             type: ObjectID,
             ref: "tagModel"
         },
-        tick: Number
+        siteLocation: String,
+        version: String,
+        changeLog: String,
+        userCheckTime: Number,
+        tick: Number,
+        connectionTimeout: Number
     }, { collection: 'globalSettings' });
     return mongoose.model('globalModel', globalSettingSchema);
 }

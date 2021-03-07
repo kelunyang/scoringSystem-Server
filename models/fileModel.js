@@ -6,6 +6,7 @@ module.exports = function (mongoose) {
         type: String,
         name: String,
         size: Number,
+        status: Number,
         writeConfirm: Boolean
     }, { collection: 'fileDB' });
     return mongoose.model('fileModel', fileSchema);
