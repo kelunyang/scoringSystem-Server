@@ -140,19 +140,19 @@ module.exports = async (models) => {
         sendMsgFile: {
             action: '新增公告附件檔案',
             where: '檔案模組',
-            authRange: _.flatten(setting.settingTags, setting.userTags),
+            authRange: _.flatten([setting.settingTags, setting.userTags]),
             loginRequire: true
         },
         deleteMsgFile: {
             action: '刪除公告附件檔案',
             where: '檔案模組',
-            authRange: _.flatten(setting.settingTags, setting.userTags),
+            authRange: _.flatten([setting.settingTags, setting.userTags]),
             loginRequire: true
         },
         addMsg: {
             action: '新增訊息',
             where: '訊息模組',
-            authRange: _.flatten(setting.settingTags, setting.userTags),
+            authRange: _.flatten([setting.settingTags, setting.userTags]),
             loginRequire: true
         },
         getMessage: {
@@ -164,13 +164,13 @@ module.exports = async (models) => {
         saveMessage: {
             action: '儲存訊息',
             where: '訊息模組',
-            authRange: _.flatten(setting.settingTags, setting.userTags),
+            authRange: _.flatten([setting.settingTags, setting.userTags]),
             loginRequire: true
         },
         removeMessage: {
             action: '刪除訊息',
             where: '訊息模組',
-            authRange: _.flatten(setting.settingTags, setting.userTags),
+            authRange: _.flatten([setting.settingTags, setting.userTags]),
             loginRequire: true
         },
         getmsgAttachment: {
@@ -194,7 +194,7 @@ module.exports = async (models) => {
         sendBroadcast: {
             action: '發送全域廣播',
             where: '訊息模組',
-            authRange: _.flatten(setting.settingTags, setting.userTags),
+            authRange: _.flatten([setting.settingTags, setting.userTags]),
             loginRequire: true
         },
         getIndexMessages: {
@@ -206,43 +206,43 @@ module.exports = async (models) => {
         getUsers: {
             action: '取得使用者列表',
             where: '使用者模組',
-            authRange: _.flatten(setting.settingTags, setting.userTags),
+            authRange: _.flatten([setting.settingTags, setting.userTags]),
             loginRequire: true
         },
         modUserTags: {
             action: '修改使用者的用戶標籤',
             where: '使用者模組',
-            authRange: _.flatten(setting.settingTags, setting.userTags),
+            authRange: _.flatten([setting.settingTags, setting.userTags]),
             loginRequire: true
         },
         removeUser: {
             action: '刪除使用者',
             where: '使用者模組',
-            authRange: _.flatten(setting.settingTags, setting.userTags),
+            authRange: _.flatten([setting.settingTags, setting.userTags]),
             loginRequire: true
         },
         createUsers: {
             action: '新增使用者',
             where: '使用者模組',
-            authRange: _.flatten(setting.settingTags, setting.userTags),
+            authRange: _.flatten([setting.settingTags, setting.userTags]),
             loginRequire: true
         },
         passwordReset: {
             action: '重置用戶密碼',
             where: '使用者模組',
-            authRange: _.flatten(setting.settingTags, setting.userTags),
+            authRange: _.flatten([setting.settingTags, setting.userTags]),
             loginRequire: true
         },
         modUsers: {
             action: '修改用戶',
             where: '使用者模組',
-            authRange: _.flatten(setting.settingTags, setting.userTags),
+            authRange: _.flatten([setting.settingTags, setting.userTags]),
             loginRequire: true
         },
         checkTagUsers: {
             action: '標籤內的用戶數量',
             where: '標籤模組',
-            authRange: _.flatten(setting.settingTags, setting.userTags),
+            authRange: _.flatten([setting.settingTags, setting.userTags]),
             loginRequire: true
         },
         passwordClientReset: {
@@ -260,13 +260,13 @@ module.exports = async (models) => {
         checkEmail: {
             action: '檢查Email是否重複',
             where: '使用者模組',
-            authRange: _.flatten(setting.settingTags, setting.userTags),
+            authRange: _.flatten([setting.settingTags, setting.userTags]),
             loginRequire: true
         },
         setEmail: {
             action: '設定用戶的新Email',
             where: '使用者模組',
-            authRange: _.flatten(setting.settingTags, setting.userTags),
+            authRange: _.flatten([setting.settingTags, setting.userTags]),
             loginRequire: true
         },
         getAuthLevel: {
@@ -350,13 +350,13 @@ module.exports = async (models) => {
         setAgree: {
             action: '用戶回饋加入同意',
             where: '用戶回饋模組',
-            authRange: _.flatten(setting.settingTags, setting.userTags),
+            authRange: _.flatten([setting.settingTags, setting.userTags]),
             loginRequire: true
         },
         removeFeedback: {
             action: '刪除用戶回饋',
             where: '用戶回饋模組',
-            authRange: _.flatten(setting.settingTags, setting.userTags),
+            authRange: _.flatten([setting.settingTags, setting.userTags]),
             loginRequire: true
         },
         getfeedbackAttachment: {
@@ -374,6 +374,258 @@ module.exports = async (models) => {
         incommingChat: {
             action: '發送聊天訊息',
             where: '同步檢查模組',
+            authRange: [],
+            loginRequire: true
+        },
+        addChapter: {
+            action: '新增章節',
+            where: '知識點模組',
+            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            loginRequire: true
+        },
+        setChapter: {
+            action: '設定章節',
+            where: '知識點模組',
+            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            loginRequire: true
+        },
+        saveSort: {
+            action: '儲存知識點順序',
+            where: '知識點模組',
+            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            loginRequire: true
+        },
+        removeChapter: {
+            action: '刪除章節',
+            where: '知識點模組',
+            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            loginRequire: true
+        },
+        addKB: {
+            action: '新增知識點',
+            where: '知識點模組',
+            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            loginRequire: true
+        },
+        setKB: {
+            action: '編輯知識點',
+            where: '知識點模組',
+            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            loginRequire: true
+        },
+        removeKB: {
+            action: '刪除知識點',
+            where: '知識點模組',
+            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            loginRequire: true
+        },
+        getStage: {
+            action: '取得知識點編輯階段',
+            where: '知識點模組',
+            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            loginRequire: true
+        },
+        addStage: {
+            action: '新增知識點編輯階段',
+            where: '知識點模組',
+            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            loginRequire: true
+        },
+        setStage: {
+            action: '設定知識點編輯階段',
+            where: '知識點模組',
+            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            loginRequire: true
+        },
+        removeStage: {
+            action: '刪除知識點編輯階段',
+            where: '知識點模組',
+            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            loginRequire: true
+        },
+        getChapters: {
+            action: '列出知識點',
+            where: '知識點模組',
+            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            loginRequire: true
+        },
+        sendKBFile: {
+            action: '上傳知識點附件檔',
+            where: '知識點模組',
+            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            loginRequire: true
+        },
+        deleteKBFile: {
+            action: '刪除知識點附件檔',
+            where: '知識點模組',
+            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            loginRequire: true
+        },
+        cloneStages: {
+            action: '複製知識點編輯階段',
+            where: '知識點模組',
+            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            loginRequire: true
+        },
+        importKBZip: {
+            action: '匯入知識點ZIP檔',
+            where: '知識點模組',
+            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            loginRequire: true
+        },
+        getKBAttachment: {
+            action: '取得知識點說明附件',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        getissueAttachment: {
+            action: '取得Issue附件',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        listDashBoard: {
+            action: '取得使用者歸屬的知識點',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        participantStatstics: {
+            action: '取得知識點參與者統計',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        sendKBVersion: {
+            action: '上傳知識點版本',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        deleteKBVersion: {
+            action: '刪除知識點版本',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        getKBVersions: {
+            action: '取得知識點版本',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        getlatestVersions: {
+            action: '取得最新版本',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        getKB: {
+            action: '取得單一知識點',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        getissueList: {
+            action: '取得單一知識點Issue清單',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        setIssue: {
+            action: '修改Issue',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        getIssue: {
+            action: '取得Issue',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        editIssue: {
+            action: '取得新增的Issue',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        setissueStar: {
+            action: '標記為重要Issue',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        setissueStatus: {
+            action: '設定Issue狀態',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        removeIssue: {
+            action: '刪除Issue',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        addIssue: {
+            action: '新增Issue',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        addObjective: {
+            action: '新增目標',
+            where: '知識點模組',
+            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            loginRequire: true
+        },
+        setObjective: {
+            action: '同意或不同意目標',
+            where: '知識點模組',
+            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            loginRequire: true
+        },
+        removeObjective: {
+            action: '刪除目標',
+            where: '知識點模組',
+            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            loginRequire: true
+        },
+        leaveKBEditing: {
+            action: '離開共同編輯',
+            where: '知識點模組',
+            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            loginRequire: true
+        },
+        joinKBEditing: {
+            action: '加入共同編輯',
+            where: '知識點模組',
+            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            loginRequire: true
+        },
+        userInbound: {
+            action: '用戶登入',
+            where: '登入模組',
+            authRange: [],
+            loginRequire: true
+        },
+        userRestored: {
+            action: '用戶資料復原',
+            where: '登入模組',
+            authRange: [],
+            loginRequire: true
+        },
+        clearCurrentUser: {
+            action: '清除用戶資料',
+            where: '登入模組',
+            authRange: [],
+            loginRequire: true
+        },
+        sendissueFile: {
+            action: '送出Issue附件',
+            where: '知識點模組',
             authRange: [],
             loginRequire: true
         }

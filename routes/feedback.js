@@ -4,12 +4,11 @@ const moment = require('moment');
 const { ObjectId } = require('mongodb');
 const fs = require('fs-extra');
 const TurndownService = require('turndown')
-
 const turndownService = new TurndownService();
+const _ = require('lodash');
 
 module.exports = (io, models) => {
   io.p2p.on('getfeedbackList', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       var collection = await models.feedbackModel.find({
         parent: undefined
@@ -27,7 +26,6 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('getFeedback', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       var main = await models.feedbackModel.findOne({
         _id: new ObjectId(data)
@@ -51,7 +49,6 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('editFeedback', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       var feedback = await models.feedbackModel.findOne({
         _id: data
@@ -66,9 +63,9 @@ module.exports = (io, models) => {
       var feedback = await models.feedbackModel.findOne({
         _id: new ObjectId(data._id)
       }).exec();
-      if(feedback.users.some((item) => {
-        return (new ObjectId(io.p2p.request.session.passport.user)).equals(new ObjectId(item));
-      })) {
+      if(_.find(feedback.users, (user) => {
+        return (new ObjectId(io.p2p.request.session.passport.user)).equals(new ObjectId(user._id));
+      }) !== undefined) {
         if(data.title !== null) { feedback.title = data.title; }
         feedback.parent = data.parent === undefined || data.parent === null ? undefined : new ObjectId(data.parent);
         feedback.body = turndownService.turndown(data.body);
@@ -112,27 +109,23 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('setAgree', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
-      if(globalSetting.settingTags.some((item) => {
+      if(_.find(globalSetting.settingTags, (item) => {
         return (new ObjectId(io.p2p.request.session.passport.user)).equals(new ObjectId(item));
-      })) {
+      }) !== undefined) {
         var feedback = await models.feedbackModel.findOne({
-          _id: new ObjectId(data._id)
-        }).exec();
-        let users = new Set(feedback.users);
-        users.add(new ObjectId(io.p2p.request.session.passport.user));
-        feedback.users = Array.from(users);
-        await feedback.save();
-        io.p2p.emit('setAgree', true);
-        var main = await models.feedbackModel.findOne({
           _id: new ObjectId(data._id)
         })
         .populate('users', '-password -lineToken -lineCode')
         .populate('rating')
         .populate('attachments')
         .exec();
+        let users = new Set(feedback.users);
+        users.add(new ObjectId(io.p2p.request.session.passport.user));
+        feedback.users = Array.from(users);
+        await feedback.save();
+        io.p2p.emit('setAgree', true);
         var collection = await models.feedbackModel.find({
           parent: new ObjectId(data._id)
         }).sort({tick: 1})
@@ -141,7 +134,7 @@ module.exports = (io, models) => {
         .populate('attachments')
         .exec();
         io.p2p.emit('getFeedback', {
-          main: main,
+          main: feedback,
           collections: collection
         });
         collection = await models.feedbackModel.find({
@@ -161,11 +154,14 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('setRating', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       var feedback = await models.feedbackModel.findOne({
         _id: new ObjectId(data._id)
-      }).exec();
+      })
+      .populate('users', '-password -lineToken -lineCode')
+      .populate('rating')
+      .populate('attachments')
+      .exec();
       let currentUser = new ObjectId(io.p2p.request.session.passport.user);
       if(data.status) {
         let users = new Set(feedback.rating);
@@ -178,13 +174,6 @@ module.exports = (io, models) => {
       }
       await feedback.save();
       io.p2p.emit('setRating', true);
-      var main = await models.feedbackModel.findOne({
-        _id: new ObjectId(data._id)
-      })
-      .populate('users', '-password -lineToken -lineCode')
-      .populate('rating')
-      .populate('attachments')
-      .exec();
       var collection = await models.feedbackModel.find({
         parent: new ObjectId(data._id)
       }).sort({tick: 1})
@@ -193,7 +182,7 @@ module.exports = (io, models) => {
       .populate('attachments')
       .exec();
       io.p2p.emit('getFeedback', {
-        main: main,
+        main: feedback,
         collections: collection
       });
       collection = await models.feedbackModel.find({
@@ -212,24 +201,21 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('setStatus', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       var feedback = await models.feedbackModel.findOne({
         _id: new ObjectId(data)
-      }).exec();
-      if(feedback.users.some((item) => {
-        return (new ObjectId(io.p2p.request.session.passport.user)).equals(new ObjectId(item));
-      })) {
+      })
+      .populate('users', '-password -lineToken -lineCode')
+      .populate('rating')
+      .populate('attachments')
+      .exec();
+
+      if(_.find(feedback.users, (user) => {
+        return (new ObjectId(io.p2p.request.session.passport.user)).equals(new ObjectId(user._id));
+      }) !== undefined) {
         feedback.status = !feedback.status;
         await feedback.save();
         io.p2p.emit('setStatus', true);
-        var main = await models.feedbackModel.findOne({
-          _id: new ObjectId(data)
-        })
-        .populate('users', '-password -lineToken -lineCode')
-        .populate('rating')
-        .populate('attachments')
-        .exec();
         var collection = await models.feedbackModel.find({
           parent: new ObjectId(data)
         }).sort({tick: 1})
@@ -238,7 +224,7 @@ module.exports = (io, models) => {
         .populate('attachments')
         .exec();
         io.p2p.emit('getFeedback', {
-          main: main,
+          main: feedback,
           collections: collection
         });
         collection = await models.feedbackModel.find({
@@ -258,7 +244,6 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('removeFeedback', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       let errorlog = 0;
       var collections = await models.feedbackModel.find({
@@ -269,7 +254,8 @@ module.exports = (io, models) => {
         for(let i=0;i<feedback.attachments.length;i++) {
           try {
             let file = feedback.attachments[i];
-            await fs.remove('/var/www/frontend/storages/' + file);
+            let exist = await fs.access('/var/www/frontend/storages/' + file);
+            if(exist) { await fs.remove('/var/www/frontend/storages/' + file); }
             fileObj = await models.fileModel.deleteOne({
               _id: new ObjectId(file)
             }).exec();
@@ -284,7 +270,8 @@ module.exports = (io, models) => {
       for(let i=0;i<feedback.attachments.length;i++) {
         try {
           let file = feedback.attachments[i];
-          await fs.remove('/var/www/frontend/storages/' + file);
+          let exist = await fs.access('/var/www/frontend/storages/' + file);
+          if(exist) { await fs.remove('/var/www/frontend/storages/' + file); }
           fileObj = await models.fileModel.deleteOne({
             _id: new ObjectId(file)
           }).exec();
@@ -319,7 +306,6 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('addFeedback', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       var feedback = await models.feedbackModel.create({ 
         tick: moment().unix(),
@@ -334,6 +320,17 @@ module.exports = (io, models) => {
         _id: feedback._id,
         parent: feedback.parent
       });
+    }
+  });
+
+  io.p2p.on('getfeedbackAttachment', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      var collection = await models.feedbackModel.findOne({
+        _id: data
+      })
+      .populate('attachments')
+      .exec();
+      io.p2p.emit('getfeedbackAttachment', collection.attachments);
     }
   });
 

@@ -1,5 +1,6 @@
 const moment = require('moment');
 const { ObjectId } = require('mongodb');
+const _ = require('lodash');
 
 module.exports = (models) => {
     return async (req, res, next) => {
@@ -16,7 +17,7 @@ module.exports = (models) => {
                 if(action.authRange.length !== 0) {
                     let found = false;
                     action.authRange.forEach((tag) => {
-                        found = user.tags.find(tag);
+                        found = _.find(user.tags, tag);
                     });
                     if(found) {
                         ma = authMapping['authGranted'];

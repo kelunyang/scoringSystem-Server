@@ -6,114 +6,159 @@ const { ObjectId } = require('mongodb');
 const generator = require('generate-password');
 const nodemailer = require("nodemailer");
 const validator = require('validator');
+const _ = require('lodash');
 
 module.exports = (io, models) => {
+  let getUsers = async() => {
+    let users = await models.userModel.find({})
+    .sort({_id: 1}).exec();
+    io.p2p.emit('getUsers', users);
+  };
+
+  io.p2p.on('userInbound', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      io.p2p.join('/activeUsers');
+      io.p2p.to("/activeUsers").emit('userInbound');
+    }
+  });
+
   io.p2p.on('getAuthLevel', async (data) => {
     let table = await require('../middleware/frontendAuth')(models);
     io.p2p.emit('getAuthLevel', table);
   });
 
   io.p2p.on('getConcurrentUsers', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
-      let activeUsers = await models.activeuserModel.aggregate([
-        {
-          $group:
+      let socketioRoom = io.p2n.of('/').adapter.rooms.get("/activeUsers");
+      if(socketioRoom === undefined || socketioRoom === null || socketioRoom.length === 0) {
+        io.p2p.emit('getConcurrentUsers', []);
+      } else {
+        let activeSockets = Array.from(socketioRoom);
+        let activeUsers = await models.activeuserModel.aggregate([
+          { $match : { socketio : { $in: activeSockets }}},
           {
-            _id: '$user',
-            where: { $push: '$where' }
-          }
-        },
-        {
-          $lookup:
+            $lookup:
+            {
+              from: "userDB",
+              localField: "user",
+              foreignField: "_id",
+              as: "user"
+            }
+          },
           {
-            from: "userDB",
-            localField: "_id",
-            foreignField: "_id",
-            as: "_id"
-          }
-        },
-        {
-          $project: {
-            '_id': {
-              password: 0,
-              lineCode: 0,
-              lineToken: 0,
-              lineDate:0
+            $unwind: {
+              path: '$user',
+              preserveNullAndEmptyArrays: false
+            }
+          },
+          {
+            $group:
+            {
+              _id: '$user._id',
+              name: { $first: '$user.name' },
+              types: { $first: '$user.types' },
+              unit: { $first: '$user.unit' },
+              email: { $first: '$user.email' },
+              createDate: { $first: '$user.createDate' },
+              where: { $push: '$where' }
+            }
+          },
+          {
+            $project: {
+              _id: 1,
+              name: 1,
+              types: 1,
+              unit: 1,
+              email: 1,
+              createDate: 1,
+              where: {
+                $reverseArray: "$where"
+              }
             }
           }
-        }
-      ]).exec();
-      io.p2p.emit('getConcurrentUsers', activeUsers);
+        ]);
+        io.p2p.emit('getConcurrentUsers', activeUsers);
+      }
     }
   });
 
   io.p2p.on('createUsers', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
-      let emailValid = 0;
+      let robotSetting = await models.robotModel.findOne({}).sort({_id: 1}).exec();
+      let setting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+      let passwords = generator.generateMultiple(data.email.length, {
+        length: 10
+      });
       let count = 0;
-      for(let i=0; i<data.email.length; i++) {
-        emailValid += !validator.isEmail(data.email[i]) ? 1 : 0;
-      }
-      if(emailValid === 0) {
-        let robotSetting = await models.robotModel.findOne({}).sort({_id: 1}).exec();
-        let setting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
-        let passwords = generator.generateMultiple(data.email.length, {
-          length: 10
-        });
-        let tags = data.tags.map((tag) => {
-          return new ObjectId(tag);
-        });
-        for(let i=0; i<data.email.length; i++) {
-          let currentTick = moment().unix();
-          var collection = await models.userModel.create({ 
-            tags: tags,
-            types: 'human',
-            name: '請輸入姓名',
-            unit: '請輸入你的服務單位',
-            email: data.email[i],
-            createDate: currentTick,
-            modDate: currentTick,
-            firstRun: true,
-            password: bcrypt.hashSync(passwords[i], bcrypt.genSaltSync(10)),
-          });
-          let transporter = nodemailer.createTransport({
-            host: robotSetting.mailSMTP,
-            port: robotSetting.mailPort,
-            secure: robotSetting.mailSSL,
-            auth: {
-              user: robotSetting.mailAccount,
-              pass: robotSetting.mailPassword,
-            },
-          });
-          try {
-            let info = await transporter.sendMail({
-              from: '"臺北市學科影片審查平台" <kelunyang@outlook.com>',
-              to: data.email[i],
-              subject: "臺北市學科影片審查平台：帳號開通通知信",
-              text: "您好，您的帳號已經開通，您第一次登入的密碼是：" + passwords[i] + "\n請記得在登入後修改密碼並填入相關資訊，最重要的是，登入後，請務必要綁定您LINE，我們才能通知您喔！\n登入網址：" + setting.siteLocation, // plain text body
-              html: "<p>您好，您的帳號已經開通，您的暫時密碼是：" + passwords[i] + "</p><p>請記得在登入後修改密碼並填入相關資訊，最重要的是，登入後，請務必要綁定您LINE，我們才能通知您喔！</p><p>登入網址：<a href='" + setting.siteLocation + "' target='_blank' title='登入網址'>" + setting.siteLocation + "</a></p>", // html body
-            });
-          } catch(err) {
-            console.log(err);
+      let emailDB = await models.userModel.aggregate([
+        {
+          $group: {
+            _id: null,
+            emails: {
+              $addToSet: '$email'
+            }
           }
-          count++;
+        }
+      ]);
+      let emails = emailDB[0].emails;
+      for(let i=0; i<data.email.length; i++) {
+        let emailAwaited = data.email[i];
+        if(validator.isEmail(emailAwaited)) {
+          if(_.find(emails, (email) => {
+            return email === emailAwaited;
+          }) === undefined) {
+            let tags = data.tags.map((tag) => {
+              return new ObjectId(tag);
+            });
+            let currentTick = moment().unix();
+            await models.userModel.create({
+              tags: tags,
+              types: 'human',
+              name: '請輸入姓名',
+              unit: '請輸入你的服務單位',
+              email: emailAwaited,
+              createDate: currentTick,
+              modDate: currentTick,
+              firstRun: true,
+              password: bcrypt.hashSync(passwords[i], bcrypt.genSaltSync(10)),
+            });
+            let transporter = nodemailer.createTransport({
+              host: robotSetting.mailSMTP,
+              port: robotSetting.mailPort,
+              secure: robotSetting.mailSSL,
+              auth: {
+                user: robotSetting.mailAccount,
+                pass: robotSetting.mailPassword,
+              },
+            });
+            try {
+              await transporter.sendMail({
+                from: '"臺北市學科影片審查系統" <kelunyang@outlook.com>',
+                to: data.email[i],
+                subject: "臺北市學科影片審查系統：帳號開通通知信",
+                text: "您好，您的帳號已經開通，你的帳號就是你收到信的Email，您第一次登入的密碼是：" + passwords[i] + "\n請記得在登入後修改密碼並填入相關資訊，最重要的是，登入後，請務必要綁定您LINE，我們才能通知您喔！\n登入網址：" + setting.siteLocation, // plain text body
+                html: "<p>您好，您的帳號已經開通，你的帳號就是你收到信的Email，您的暫時密碼是：" + passwords[i] + "</p><p>請記得在登入後修改密碼並填入相關資訊，最重要的是，登入後，請務必要綁定您LINE，我們才能通知您喔！</p><p>登入網址：<a href='" + setting.siteLocation + "' target='_blank' title='登入網址'>" + setting.siteLocation + "</a></p>", // html body
+              });
+            } catch(err) {
+              console.log(err);
+            }
+            count++;
+          }
         }
       }
       io.p2p.emit('createUsers', {
         planned: data.email.length,
         processed: count
       });
+      getUsers();
     }
   });
 
   io.p2p.on('passwordClientReset', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     let user = await models.userModel.findOne({
       email: data
     }).sort({_id: 1}).exec();
-    if(user === undefined) {
+    if(user === undefined || user === null) {
       io.p2p.emit('passwordClientReset', {
         name: undefined
       });
@@ -137,9 +182,9 @@ module.exports = (io, models) => {
       });
       try {
         let info = await transporter.sendMail({
-          from: '"臺北市學科影片審查平台" <kelunyang@outlook.com>',
+          from: '"臺北市學科影片審查系統" <kelunyang@outlook.com>',
           to: user.email,
-          subject: "臺北市學科影片審查平台：帳號密碼重置通知信",
+          subject: "臺北市學科影片審查系統：帳號密碼重置通知信",
           text: "您好，您的密碼已經被重置了，您的暫時登入密碼是：" + password + "\n請記得在登入後修改密碼！\n登入網址：" + setting.siteLocation, // plain text body
           html: "<p>您好，您的帳號已經被重置了，您的暫時登入密碼是：" + password + "</p><p>請記得在登入後修改密碼！</p><p>登入網址：<a href='" + setting.siteLocation + "' target='_blank' title='登入網址'>" + setting.siteLocation + "</a></p>", // html body
         });
@@ -153,7 +198,6 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('passwordReset', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       let setting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
       let robotSetting = await models.robotModel.findOne({}).sort({_id: 1}).exec();
@@ -177,9 +221,9 @@ module.exports = (io, models) => {
       });
       try {
         let info = await transporter.sendMail({
-          from: '"臺北市學科影片審查平台" <kelunyang@outlook.com>',
+          from: '"臺北市學科影片審查系統" <kelunyang@outlook.com>',
           to: user.email,
-          subject: "臺北市學科影片審查平台：帳號密碼重置通知信",
+          subject: "臺北市學科影片審查系統：帳號密碼重置通知信",
           text: "您好，您的密碼已經被重置了，您的暫時登入密碼是：" + password + "\n請記得在登入後修改密碼！\n登入網址：" + setting.siteLocation, // plain text body
           html: "<p>您好，您的帳號已經被重置了，您的暫時登入密碼是：" + password + "</p><p>請記得在登入後修改密碼！</p><p>登入網址：<a href='" + setting.siteLocation + "' target='_blank' title='登入網址'>" + setting.siteLocation + "</a></p>", // html body
         });
@@ -193,7 +237,6 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('modUsers', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       let user = await models.userModel.findOne({
         _id: ObjectId(data._id)
@@ -201,9 +244,9 @@ module.exports = (io, models) => {
       user.unit = data.unit;
       user.modDate = moment().unix();
       let tagdeleteTOBE = user.tags.filter((item) => {
-        return !data.tags.some((dtag) => {
+        return _.find(data.tags, (dtag) => {
           return (new ObjectId(dtag)).equals(item);
-        })
+        }) !== undefined;
       })
       let zeroTag = [];
       let setting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
@@ -233,9 +276,7 @@ module.exports = (io, models) => {
         name: user.name,
         zeroTag: zeroTag
       });
-      let users = await models.userModel.find({})
-      .sort({_id: 1}).exec();
-      io.p2p.emit('getUsers', users);
+      getUsers();
     }
   });
 
@@ -247,39 +288,25 @@ module.exports = (io, models) => {
         })
         .populate('tags').sort({_id: 1}).exec();
         io.p2p.emit('getCurrentUser', user);
-        if(io.p2p.request.session.hasOwnProperty('broadcastLogin')) {
-          if(io.p2p.request.session.broadcastLogin) {
-            io.p2p.request.session.broadcastLogin = false;
-            io.p2p.join('activeUsers');
-            let activeUsers = await models.activeuserModel.aggregate([
-              {
-                $group:
-                {
-                  _id: '$user',
-                  where: { $push: '$where' }
-                }
-              },
-              {
-                $lookup:
-                {
-                  from: "userDB",
-                  localField: "_id",
-                  foreignField: "_id",
-                  as: "_id"
-                }
-              }
-            ]).exec();
-            io.p2n.in("activeUsers").emit('getConcurrentUsers', activeUsers);
-          }
-        }
         return; //直接結束程式
+      } else {
+        return {
+          _id: '',
+          tags: [],
+          types: 'bottts',
+          name: 'undefined',
+          unit: 'undefined',
+          email: 'undefined@undefined.com',
+          createDate: 0,
+          modDate: 0,
+          lineDate: 0
+        }
       }
     }
     io.p2p.emit('getCurrentUser', undefined);
   });
 
   io.p2p.on('getRobotUsers', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       let setting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
       let users = await models.userModel.find({
@@ -290,35 +317,23 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('getUsers', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
-      let users = await models.userModel.find({})
-      .sort({_id: 1}).exec();
-      io.p2p.emit('getUsers', users);
+      getUsers();
     }
   });
 
   io.p2p.on('setCurrentUser', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
-      let action = authMapping['setCurrentUser'];
       let user = await models.userModel.findOne({
         _id: ObjectId(io.p2p.request.session.passport.user)
       }).sort({_id: 1}).exec();
       user.name = data.name;
       user.types = data.types;
       user.unit = data.unit;
+      user.firstRun = false;
       user.modDate = moment().unix();
-      if(data.password === '') {
-        user.password = bcrypt.hashSync(data.password, bcrypt.genSaltSync(10));
-      }
+      user.password = bcrypt.hashSync(data.password, bcrypt.genSaltSync(10));
       await user.save();
-      await models.logModel.create({ 
-        tick: moment().unix(),
-        name: io.p2p.request.session.passport.user,
-        where: action.where,
-        action: action.action + '帳號：' + data.name + '(' + user._id + ')'
-      });
       io.p2p.emit('setCurrentUser', {
         modify: moment().unix()
       });
@@ -327,7 +342,6 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('modUserTags', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       let count = 0;
       let zeroTag = [];
@@ -337,20 +351,16 @@ module.exports = (io, models) => {
           _id: ObjectId(userID)
         }).sort({_id: 1}).exec();
         if(data.type == 1) {
-          for(let k=0; k<data.tags.length; k++) {
-            let tag = new ObjectId(data.tags[k]);
-            let userTag = user.tags.some((item) => {
-              return item.equals(tag);
-            });
-            if(!userTag) {
-              user.tags.push(tag);
-            }
-          }
+          user.tags = _.uniqWith(_.flatten([user.tags, _.map(data.tags, (item) => {
+            return new ObjectId(item);
+          })]), (a, b) => {
+            return a.equals(b);
+          });
         } else {
           let tagdeleteTOBE = user.tags.filter((item) => {
-            return !data.tags.some((dtag) => {
+            return _.find(data.tags, (dtag) => {
               return (new ObjectId(dtag)).equals(item);
-            })
+            }) !== undefined;
           })
           let tagsAdd = new Set(data.tags);
           let setting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
@@ -381,14 +391,11 @@ module.exports = (io, models) => {
         tags: data.tags.length,
         zeroTag: zeroTag
       });
-      let users = await models.userModel.find({})
-      .sort({_id: 1}).exec();
-      io.p2p.emit('getUsers', users);
+      getUsers();
     }
   });
 
   io.p2p.on('checkEmail', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       let users = await models.userModel.find({
         email: data
@@ -401,11 +408,10 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('setEmail', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       let users = await models.userModel.find({
         email: data.email
-      }).sort({_id: 1}).exec();
+      }).exec();
       if(users.length === 0) {
         let user = await models.userModel.find({
           _id: new ObjectId(data.id)
@@ -420,7 +426,6 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('removeUser', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       let count = 0;
       let setting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
@@ -454,9 +459,7 @@ module.exports = (io, models) => {
         planned: data.length,
         processed: count
       });
-      let users = await models.userModel.find({})
-      .sort({_id: 1}).exec();
-      io.p2p.emit('getUsers', users);
+      getUsers();
     }
   });
 

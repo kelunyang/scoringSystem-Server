@@ -9,6 +9,7 @@ const qs = require('qs');
 
 /* GET users listing. */
 module.exports = (app, passport, models) => {
+
   router.post('/login', auth(models), (req, res, next) => {
     if(res.locals.status.type === 0) {
       passport.authenticate('local', {
@@ -23,6 +24,7 @@ module.exports = (app, passport, models) => {
       loginStatus: 2
     });
   });
+
   router.post('/logout', auth(models), log({
     models: models,
     user: true,
@@ -35,17 +37,18 @@ module.exports = (app, passport, models) => {
       loginStatus: 1,
     });
   });
+
   router.get('/loginSuccess', auth(models), log({
     models: models,
     user: true,
     action: 'loginSuccess'
   }), (req, res) => {
-    req.session.broadcastLogin = true;
     req.session.save();
     res.json({
       loginStatus: 1,
     });
   });
+  
   router.get('/loginFail', auth(models), log({
     models: models,
     user: false,
@@ -73,7 +76,7 @@ module.exports = (app, passport, models) => {
         withCredentials: true
       });
       let sendmsg = await axios.post('https://notify-api.line.me/api/notify', qs.stringify({
-        message: '您好，歡迎使用台北市學科影片審查平台的LINE notify通知服務！'
+        message: '您好，歡迎使用臺北市學科影片審查系統的LINE notify通知服務！'
       }), {
         headers: {
           Authorization: 'Bearer ' + result.data.access_token

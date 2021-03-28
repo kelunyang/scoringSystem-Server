@@ -6,8 +6,10 @@ module.exports = function (mongoose) {
         type: String,
         name: String,
         size: Number,
+        tick: Number,
         status: Number,
-        writeConfirm: Boolean
+        writeConfirm: Boolean,
+        comment: String
     }, { collection: 'fileDB' });
     return mongoose.model('fileModel', fileSchema);
 }

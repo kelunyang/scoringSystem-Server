@@ -10,12 +10,12 @@ let session = require('express-session');
 const mongoDB = 'mongodb://vrAdmin:cooc1234@localhost/videoReview';
 const MongoStore = require('connect-mongo')(session);
 const bcrypt = require('bcryptjs');
-const bodyParser = require('body-parser');
 const authSocket = require('./middleware/authSocket');
 const { ObjectId } = require('mongodb');
 let mongoPointer = false;
-let userAlived = false;
-let oriobj = this;
+let aliveTimer = null;
+let userAlived = true;
+let tempPassport = null;
 
 //model
 const settingModel = require('./models/globalModel')(mongoose);
@@ -31,6 +31,12 @@ const fileModel = require('./models/fileModel')(mongoose);
 const feedbackModel = require('./models/feedbackModel')(mongoose);
 const activeuserModel = require('./models/activeuserModel')(mongoose);
 const sessionModel = require('./models/sessionModel')(mongoose);
+const eventlogModel = require('./models/eventlogModel')(mongoose);
+const issueModel = require('./models/issueModel')(mongoose);
+const KBModel = require('./models/KBModel')(mongoose);
+const chapterModel = require('./models/chapterModel')(mongoose);
+const stageModel = require('./models/stageModel')(mongoose);
+const objectiveModel = require('./models/objectiveModel')(mongoose);
 const modelList = {
     messageModel: systemmessageModel,
     logModel: logModel,
@@ -44,7 +50,13 @@ const modelList = {
     broadcastModel: broadcastModel,
     feedbackModel: feedbackModel,
     activeuserModel: activeuserModel,
-    sessionModel: sessionModel
+    sessionModel: sessionModel,
+    KBModel: KBModel,
+    issueModel: issueModel,
+    eventlogModel: eventlogModel,
+    stageModel: stageModel,
+    chapterModel: chapterModel,
+    objectiveModel: objectiveModel
 };
 
 //掛載socketio, 啟動express
@@ -55,8 +67,6 @@ const io = require('socket.io')(server);
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(bodyParser.urlencoded({ extended: false }))
-app.use(bodyParser.json());
 app.use(passport.initialize());
 
 mongoose.connect(mongoDB, { 
@@ -127,15 +137,21 @@ try {
         
         io.on('connection', async (socket) => {
             try {
+                if(tempPassport !== null) {
+                    if(socket.request.sessionID === tempPassport.id) {
+                        socket.request.session.passport = tempPassport.passport;
+                        socket.request.session.save();
+                        tempPassport = null;
+                    }
+                }
                 let globalSetting = await modelList.settingModel.findOne({}).sort({_id: 1}).exec();
                 let connectionTimeout = globalSetting === null || globalSetting == undefined ? 2 : globalSetting.connectionTimeout;
-                let userAlived = true;
                 socket.on("disconnect", () => {
                     userAlived = false;
                     socket.emit('userAlived');
-                    setTimeout(async () => {
+                    aliverTimer = setTimeout(async () => {
                         if(!userAlived) {
-                            await modelList.activeuserModel.deleteOne({
+                            await modelList.activeuserModel.deleteMany({
                                 socketio: socket.id,
                                 session: socket.request.sessionID
                             }).exec();
@@ -148,12 +164,37 @@ try {
                                 }).exec();
                             }
                             socket.emit('userDied');
+                            if('passport' in socket.request.session) {
+                                tempPassport = {
+                                    id:socket.request.sessionID,
+                                    passport: socket.request.session.passport
+                                }
+                                await modelList.logModel.create({ 
+                                    tick: moment().unix(),
+                                    name: ObjectId(socket.request.session.passport.user),
+                                    where: '登入模組',
+                                    action: '登出成功'
+                                });
+                                socket.request.logout();
+                                delete socket.request.session.passport;
+                                socket.request.session.save();
+                            }
+                            socket.to("/activeUsers").emit('userLeave');
+                            socket.leave('/activeUsers');
+                            console.log('socket: ' + socket.id + ' disconnected');
+                            clearTimeout(aliveTimer);
+                            aliveTimer = null;
                             return; //結束程式
                         }
                     }, connectionTimeout * 1000)
                 });
-                socket.on("userAlived", () => {
+                socket.on("userAlived", async () => {
                     userAlived = true;
+                });
+                socket.on("clearCurrentUser", async () => {
+                    tempPassport = null;
+                    delete socket.request.session.passport;
+                    socket.emit("clearCurrentUser");
                 });
                 socket.use(async ([event], next) => {
                     await authSocket(socket, modelList, [event], next);
@@ -196,6 +237,14 @@ try {
                     p2p: socket,
                     p2n: io
                 }, modelList);
+                let issue = require('./routes/issue')({
+                    p2p: socket,
+                    p2n: io
+                }, modelList);
+                let KB = require('./routes/KB')({
+                    p2p: socket,
+                    p2n: io
+                }, modelList);
                 app.use('/', index);
                 app.use('/users', users);
                 app.use('/settings', settings);
@@ -203,10 +252,25 @@ try {
                 app.use('/tags', tags);
                 app.use('/file', file);
                 app.use('/feedback', feedback);
+                app.use('/issue', issue);
+                app.use('/KB', KB);
             } catch (e) {
-                socket.emit('error', {
-                    title: e.title,
-                    text: e.errObj
+                console.dir(e);
+                let stack = [];
+                let code = '';
+                if(e.requireStack !== undefined) {
+                    for(let i=0; i<e.requireStack.length; i++) {
+                        let filename = /^\/(.+\/)*(.+)\.(.+)$/.exec(e.requireStack[i]);
+                        stack.push(filename[filename.length - 2] + "." + filename[filename.length - 1]);
+                    }
+                    code = e.code;
+                } else {
+                    code = '無法指明的錯誤';
+                }
+                socket.emit('fatalError', {
+                    code: code,
+                    stack: stack,
+                    tick: moment().unix()
                 });
             }
         });        

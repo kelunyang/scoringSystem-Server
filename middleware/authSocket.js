@@ -1,5 +1,6 @@
 const moment = require('moment');
 const { ObjectId } = require('mongodb');
+const _ = require('lodash');
 
 module.exports = async (socket, models, [event], next) => {
     console.log("socket event:" + event);
@@ -36,11 +37,14 @@ module.exports = async (socket, models, [event], next) => {
                     }).sort({_id: 1}).exec();
                     if(action.authRange.length !== 0) {
                         let found = false;
-                        action.authRange.forEach((tag) => {
-                            found = user.tags.some((utag) => {
-                                return utag.equals(tag)
-                            });
-                        });
+                        for(let i = 0; i< action.authRange.length; i++) {
+                            let authTag = action.authRange[i];
+                            if(!found) {
+                                found = (_.findIndex(user.tags, (item) => {
+                                    return item.equals(authTag);
+                                })) === -1 ? false : true;
+                            }
+                        }
                         if(found) {
                             ma = authMapping['authGranted'];
                             delete socket.request.session.status;

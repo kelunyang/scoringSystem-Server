@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const moment = require('moment');
-const { ObjectId, connect } = require('mongodb');
+const { ObjectId } = require('mongodb');
 const fs = require('fs-extra');
+const axios = require('axios');
+const qs = require('qs');
 
 module.exports = (io, models) => {
   io.p2p.on('incommingChat', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       let userId = new ObjectId(io.p2p.request.session.passport.user);
       let receiverId = new ObjectId(data.receiver);
@@ -41,8 +42,6 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('getLINElog', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
-    let auth = authMapping['getLINElog'];
     if(io.p2p.request.session.status.type === 3) {
       let lineDB = await models.lineModel.find({}).sort({_id: 1}).populate({
         path: 'log',
@@ -51,42 +50,28 @@ module.exports = (io, models) => {
           select: '-password -lineToken -lineCode' }
         }).exec();
       io.p2p.emit('getLINElog', lineDB);
-    } else {
-      io.p2p.emit('accessViolation', {
-        where: auth.where,
-        action: auth.action,
-        tick: moment().unix(),
-        loginRequire: auth.loginRequire
-      });
     }
   });
 
   io.p2p.on('sendLINEnotify', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
-    let auth = authMapping['sendLINEnotify'];
     if(io.p2p.request.session.status.type === 3) {
       let users = null;
-      if(data.type === 0) { users = await models.userModel.find({}).sort({_id: 1}).exec(); }
+      if(data.type === 0) { users = await models.userModel.find({}).exec(); }
       if(data.type === 1) {
         let setting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
-        users = [];
-        for(let i = 0; i < setting.settingTags.length; i++) {
-          let tag = setting.settingTags[i];
-          let usersQ = await models.userModel.find({
-            tags: tag
-          }).exec();
-          for(let k = 0; k < usersQ.length; k++) {
-            let user = usersQ[k];
-            users.push(user);
+        users = await models.userModel.find({
+          $in: {
+            tags: setting.settingTags
           }
-        }
+        }).exec();
       }
       let successArray = new Array();
       let success = 0;
       let failed = 0;
       for(let i=0; i< users.length; i++) {
         let user = users[i];
-        if(user.lineToken !== undefined) {
+        if(!('lineToken' in user) || user.lineToken !== undefined) {
+          console.log(user.name);
           try {
             let sendmsg = await axios.post('https://notify-api.line.me/api/notify', qs.stringify({
               message: data.body
@@ -132,20 +117,12 @@ module.exports = (io, models) => {
         success: success,
         failed: failed
       });
-    } else {
-      io.p2p.emit('accessViolation', {
-        where: auth.where,
-        action: auth.action,
-        tick: moment().unix(),
-        loginRequire: auth.loginRequire
-      });
     }
   });
 
   io.p2p.on('sendBroadcast', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
-      io.p2n.in("activeUsers").emit('messageBroadcast', {
+      io.p2n.in("/activeUsers").emit('messageBroadcast', {
         title: data.title,
         body: data.body
       });
@@ -161,7 +138,6 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('getbroadcastLog', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       var collection = await models.broadcastModel.find({}).sort({tick: -1})
       .populate('recievers', '-password -lineToken -lineCode')
@@ -171,7 +147,6 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('getMessage', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       var collection = await models.messageModel.findOne({
         _id: data
@@ -187,7 +162,6 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('getMessages', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       var collection = await models.messageModel.find({}).sort({tick: -1})
       .populate('attachments')
@@ -241,23 +215,16 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('getmsgAttachment', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       var collection = await models.messageModel.findOne({
         _id: data
       })
-      .populate('attachments')
-      .populate({
-        path: 'user',
-        select: '-password -lineToken -lineCode',
-        populate: { path: 'tags' }
-      }).exec();
+      .populate('attachments').exec();
       io.p2p.emit('getmsgAttachment', collection.attachments);
     }
   });
 
   io.p2p.on('saveMessage', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       var message = await models.messageModel.findOne({
         _id: data._id
@@ -283,7 +250,6 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('removeMessage', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       var message = await models.messageModel.findOne({
         _id: new ObjectId(data)
@@ -292,7 +258,8 @@ module.exports = (io, models) => {
       for(let i=0;i<message.attachments.length;i++) {
         try {
           let file = message.attachments[i];
-          await fs.remove('/var/www/frontend/storages/' + file);
+          let exist = await fs.access('/var/www/frontend/storages/' + file);
+          if(exist) { await fs.remove('/var/www/frontend/storages/' + file); }
           fileObj = await models.fileModel.deleteOne({
             _id: new ObjectId(file)
           }).exec();
@@ -322,7 +289,6 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('addMsg', async (data) => {
-    let authMapping = await require('../middleware/mapping')(models);
     if(io.p2p.request.session.status.type === 3) {
       var msg = await models.messageModel.create({ 
         tick: moment().unix(),
