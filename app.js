@@ -37,6 +37,7 @@ const KBModel = require('./models/KBModel')(mongoose);
 const chapterModel = require('./models/chapterModel')(mongoose);
 const stageModel = require('./models/stageModel')(mongoose);
 const objectiveModel = require('./models/objectiveModel')(mongoose);
+const readedIssueModel = require('./models/readedIssueModel')(mongoose);
 const modelList = {
     messageModel: systemmessageModel,
     logModel: logModel,
@@ -56,7 +57,8 @@ const modelList = {
     eventlogModel: eventlogModel,
     stageModel: stageModel,
     chapterModel: chapterModel,
-    objectiveModel: objectiveModel
+    objectiveModel: objectiveModel,
+    readedIssueModel: readedIssueModel
 };
 
 //掛載socketio, 啟動express

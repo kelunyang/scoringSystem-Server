@@ -268,7 +268,6 @@ module.exports = (io, models) => {
       }
       user.tags = Array.from(tagsAdd);
       user.name = data.name;
-      user.email = data.email;
       user.types = data.types;
       user.firstRun = false;
       await user.save();
@@ -332,7 +331,9 @@ module.exports = (io, models) => {
       user.unit = data.unit;
       user.firstRun = false;
       user.modDate = moment().unix();
-      user.password = bcrypt.hashSync(data.password, bcrypt.genSaltSync(10));
+      if(data.password !== '') {
+        user.password = bcrypt.hashSync(data.password, bcrypt.genSaltSync(10));
+      }
       await user.save();
       io.p2p.emit('setCurrentUser', {
         modify: moment().unix()
@@ -413,12 +414,16 @@ module.exports = (io, models) => {
         email: data.email
       }).exec();
       if(users.length === 0) {
-        let user = await models.userModel.find({
+        let user = await models.userModel.findOne({
           _id: new ObjectId(data.id)
-        }).sort({_id: 1}).exec();
-        user.email = data.email;
-        await user.save();
-        io.p2p.emit('setEmail', true);
+        }).exec();
+        if(user !== undefined) {
+          user.email = data.email;
+          await user.save();
+          io.p2p.emit('setEmail', true);
+        } else {
+          io.p2p.emit('setEmail', false);
+        }
       } else {
         io.p2p.emit('setEmail', false);
       }

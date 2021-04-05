@@ -422,7 +422,7 @@ module.exports = async (models) => {
         getStage: {
             action: '取得知識點編輯階段',
             where: '知識點模組',
-            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            authRange: [],
             loginRequire: true
         },
         addStage: {
@@ -584,7 +584,7 @@ module.exports = async (models) => {
         setObjective: {
             action: '同意或不同意目標',
             where: '知識點模組',
-            authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
+            authRange: [],
             loginRequire: true
         },
         removeObjective: {
@@ -625,6 +625,18 @@ module.exports = async (models) => {
         },
         sendissueFile: {
             action: '送出Issue附件',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        setReadedIssue: {
+            action: '設定讀取Issue清單',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        getReadedIssue: {
+            action: '取得讀取Issue清單',
             where: '知識點模組',
             authRange: [],
             loginRequire: true

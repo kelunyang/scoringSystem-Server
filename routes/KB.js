@@ -10,6 +10,12 @@ const enableBroadcast = true;
 const disableBroadcast = false;
 
 module.exports = (io, models) => {
+  let getReadedIssues = async () => {
+    let readedIssues = await models.readedIssueModel.find({
+      user: new ObjectId(io.p2p.request.session.passport.user)
+    }).exec();
+    io.p2p.emit('getReadedIssue', readedIssues);
+  };
   let getStage = async (data, mode) => {
     if(data !== "") {
       let stage = await models.stageModel.findOne({
@@ -199,6 +205,75 @@ module.exports = (io, models) => {
   io.p2p.on('getKB', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       getKB(data);
+    }
+  });
+
+  io.p2p.on('getReadedIssue', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      getReadedIssues();
+    }
+  });
+
+  io.p2p.on('setReadedIssue', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      let user = new ObjectId(io.p2p.request.session.passport.user);
+      let issueID = new ObjectId(data);
+      let now = moment().unix();
+      let issueList = [];
+      let childThreads = await models.issueModel.find({
+        parent: issueID
+      }).exec();
+      let mainThread = await models.issueModel.findOne({
+        _id: issueID
+      }).exec();
+      if(mainThread) {
+        issueList.push(new ObjectId(mainThread._id));
+      }
+      for(let i=0; i<childThreads.length; i++) {
+        let childThread = childThreads[i];
+        issueList.push(new ObjectId(childThread._id));
+      }
+      let readedList = await models.readedIssueModel.aggregate([
+        {
+          $match: {
+            issue: {
+              $in: issueList
+            }
+          }
+        },
+        {
+          $project: {
+            issue: 1
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            issues: {
+              $addToSet: '$issue'
+            }
+          }
+        }
+      ]);
+      let xorList = [];
+      if(readedList.length > 0) {
+        xorList = _.xorWith(readedList[0].issues, issueList, (a, b) => {
+          return a.equals(b);
+        });
+      } else {
+        xorList = issueList;
+      }
+      let newReadeds = [];
+      for(let i=0; i< xorList.length; i++) {
+        let xor = xorList[i];
+        newReadeds.push({
+          user: user,
+          issue: xor,
+          tick: now
+        });
+      }
+      await models.readedIssueModel.insertMany(newReadeds);
+      getReadedIssues();
     }
   });
 
@@ -689,6 +764,7 @@ module.exports = (io, models) => {
           writerTags: [],
           finalTags: [],
           sort: KB.stages.length,
+          coolDown: false,
           KB: KBID,
           objectives: []
         });
@@ -788,7 +864,7 @@ module.exports = (io, models) => {
       let user =  await models.userModel.findOne({
         _id: currentUser
       }).exec();
-      let autherizedTags = _.flatten([KBstage.reviewerTags, globalSetting.settingTags]);
+      let autherizedTags = _.flatten([KBstage.reviewerTags, KBstage.pmTags,globalSetting.settingTags]);
       let tagCheck = false;
       for(let i=0; i< user.tags.length; i++) {
         let tag = user.tags[i];
@@ -974,6 +1050,7 @@ module.exports = (io, models) => {
         savedStage.current = data.stage.current;
         savedStage.name = data.stage.name;
         savedStage.modDate = now;
+        savedStage.coolDown = data.stage.coolDown;
         savedStage.dueTick = data.stage.dueTick;
         savedStage.pmTags = data.stage.pmTags;
         savedStage.reviewerTags = data.stage.reviewerTags;
@@ -992,6 +1069,16 @@ module.exports = (io, models) => {
           user: new ObjectId(io.p2p.request.session.passport.user)
         });
         KB.eventLog.push(event._id);
+        if(data.stage.coolDown) {
+          event = await models.eventlogModel.create({
+            tick: now,
+            type: '知識點操作',
+            desc: '啟動階段冷靜期',
+            KB: KBID,
+            user: new ObjectId(io.p2p.request.session.passport.user)
+          });
+          KB.eventLog.push(event._id);
+        }
         await KB.save();
         await allChapterListed(data.tag);
         await getStage(savedStage._id, enableBroadcast);
@@ -1008,46 +1095,48 @@ module.exports = (io, models) => {
 
   io.p2p.on('removeStage', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
-      let currentUser = new ObjectId(io.p2p.request.session.passport.user);
-      let user =  await models.userModel.findOne({
-        _id: currentUser
-      }).exec();
-      let autherizedTags = _.flatten([globalSetting.settingTags, globalSetting.projectTags]);
-      let tagCheck = false;
-      for(let i=0; i< user.tags.length; i++) {
-        let tag = user.tags[i];
-        if(!tagCheck) {
-          tagCheck = _.find(autherizedTags, (aTag) => {
-            return aTag.equals(tag);
-          }) !== undefined ? true : false;
+      if(data.stage._id !== '') {
+        let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+        let currentUser = new ObjectId(io.p2p.request.session.passport.user);
+        let user =  await models.userModel.findOne({
+          _id: currentUser
+        }).exec();
+        let autherizedTags = _.flatten([globalSetting.settingTags, globalSetting.projectTags]);
+        let tagCheck = false;
+        for(let i=0; i< user.tags.length; i++) {
+          let tag = user.tags[i];
+          if(!tagCheck) {
+            tagCheck = _.find(autherizedTags, (aTag) => {
+              return aTag.equals(tag);
+            }) !== undefined ? true : false;
+          }
         }
-      }
-      if(tagCheck) {
-        var stage = await models.stageModel.findOne({
-          _id: new ObjectId(data.stage._id)
-        }).exec();
-        let KBID = stage.KB;
-        let KB = await models.KBModel.findOne({
-          _id: KBID
-        }).exec();
-        stage = await models.stageModel.deleteOne({
-          _id: new ObjectId(data.stage._id)
-        }).exec();
-        let stages = await models.stageModel.find({
-          KB: KBID
-        }).exec();
-        KB.stages = stages;
-        await KB.save();
-        io.p2p.emit('removeStage', true);
-        await allChapterListed(data.tag);
-      } else {
-        io.p2p.emit('accessViolation', {
-          where: '知識點編輯',
-          tick: moment().unix(),
-          action: '移除知識點階段',
-          loginRequire: false
-        });
+        if(tagCheck) {
+          var stage = await models.stageModel.findOne({
+            _id: new ObjectId(data.stage._id)
+          }).exec();
+          let KBID = stage.KB;
+          let KB = await models.KBModel.findOne({
+            _id: KBID
+          }).exec();
+          stage = await models.stageModel.deleteOne({
+            _id: new ObjectId(data.stage._id)
+          }).exec();
+          let stages = await models.stageModel.find({
+            KB: KBID
+          }).exec();
+          KB.stages = stages;
+          await KB.save();
+          io.p2p.emit('removeStage', true);
+          await allChapterListed(data.tag);
+        } else {
+          io.p2p.emit('accessViolation', {
+            where: '知識點編輯',
+            tick: moment().unix(),
+            action: '移除知識點階段',
+            loginRequire: false
+          });
+        }
       }
     }
   });
@@ -1074,11 +1163,31 @@ module.exports = (io, models) => {
         var stages = await models.stageModel.find({
           KB: new ObjectId(data.subject._id)
         }).exec();
+        let issues = await models.issueModel.find({
+          KB: new ObjectId(data.subject._id),
+          version:  { $exists: false },
+          parent:  { $exists: false }
+        }).exec();
         for(let k=0; k<data.target.length; k++) {
           let newStages = [];
           var target = await models.KBModel.findOne({
             _id: new ObjectId(data.target[k])
           }).exec();
+          for(let i=0; i<issues.length; i++) {
+            let issue = issues[i];
+            newIssue = await models.issueModel.create({
+              KB: target._id,
+              tick: now,
+              title: issue.title,
+              position: issue.position,
+              body: issue.body,
+              user: issue.user,
+              status: issue.status,
+              star: issue.star,
+              sealed: issue.sealed,
+              parent: issue.parent
+            });
+          }
           for(let i=0; i<stages.length; i++) {
             let stage = stages[i];
             var newStage = await models.stageModel.create({ 
@@ -1091,8 +1200,9 @@ module.exports = (io, models) => {
               pmTags: stage.pmTags,
               reviewerTags: stage.reviewerTags,
               vendorTags: stage.vendorTags,
-              writerTags: stage.vendorTags,
+              writerTags: stage.writerTags,
               finalTags: stage.finalTags,
+              coolDown: stage.coolDown,
               sort: stage.sort,
               KB: target._id
             });
@@ -1111,7 +1221,7 @@ module.exports = (io, models) => {
               });
               objs.push(newObj._id);
             }
-            await models.stageModel.updateOne({ _id: newStage._id }, { objectives: obj });
+            await models.stageModel.updateOne({ _id: newStage._id }, { objectives: objs });
           }
           target.stages = newStages;
           let event = await models.eventlogModel.create({

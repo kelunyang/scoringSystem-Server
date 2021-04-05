@@ -55,40 +55,43 @@ module.exports = (io, models) => {
         populate: { path: 'stages' }
       })
       .exec();
-      let currentUser = new ObjectId(io.p2p.request.session.passport.user);
-      let KBstage = _.find(issue.KB.stages, (stage) => {
-          return stage.current;
-      });
-      let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
-      let user =  await models.userModel.findOne({
-        _id: currentUser
-      }).exec();
-      let autherizedTags = _.flatten([KBstage.pmTags, KBstage.writerTags, KBstage.reviewerTags, KBstage.vendorTags, globalSetting.settingTags]);
-      let tagCheck = false;
-      for(let i=0; i< user.tags.length; i++) {
-        let tag = user.tags[i];
-        if(!tagCheck) {
-          tagCheck = _.find(autherizedTags, (aTag) => {
-            return aTag.equals(tag);
-          }) !== undefined ? true : false;
-        }
-      }
-      if(tagCheck || (new ObjectId(issue.user)).equals(currentUser)) {
-        if(data.title !== null) { issue.title = data.title; }
-        issue.parent = data.parent === undefined || data.parent === null ? undefined : new ObjectId(data.parent);
-        issue.body = turndownService.turndown(data.body);
-        issue.type = data.type;
-        issue.tick = moment().unix();
-        await issue.save();
-        io.p2p.emit('setIssue', true);
-        getissueList(issue.KB._id, enableBroadcast);
-      } else {
-        io.p2p.emit('accessViolation', {
-          where: '知識點審查',
-          tick: moment().unix(),
-          action: '設定Issue',
-          loginRequire: false
+      if(!issue.sealed) {
+        let currentUser = new ObjectId(io.p2p.request.session.passport.user);
+        let KBstage = _.find(issue.KB.stages, (stage) => {
+            return stage.current;
         });
+        let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+        let user =  await models.userModel.findOne({
+          _id: currentUser
+        }).exec();
+        let autherizedTags = _.flatten([KBstage.pmTags, KBstage.writerTags, KBstage.reviewerTags, KBstage.vendorTags, globalSetting.settingTags]);
+        let tagCheck = false;
+        for(let i=0; i< user.tags.length; i++) {
+          let tag = user.tags[i];
+          if(!tagCheck) {
+            tagCheck = _.find(autherizedTags, (aTag) => {
+              return aTag.equals(tag);
+            }) !== undefined ? true : false;
+          }
+        }
+        if(tagCheck || (new ObjectId(issue.user)).equals(currentUser)) {
+          if(data.title !== null) { issue.title = data.title; }
+          issue.parent = data.parent === undefined || data.parent === null ? undefined : new ObjectId(data.parent);
+          issue.body = turndownService.turndown(data.body);
+          issue.type = data.type;
+          issue.sealed = true;
+          issue.tick = moment().unix();
+          await issue.save();
+          io.p2p.emit('setIssue', true);
+          getissueList(issue.KB._id, enableBroadcast);
+        } else {
+          io.p2p.emit('accessViolation', {
+            where: '知識點審查',
+            tick: moment().unix(),
+            action: '設定Issue',
+            loginRequire: false
+          });
+        }
       }
     }
   });
@@ -284,42 +287,103 @@ module.exports = (io, models) => {
   io.p2p.on('addIssue', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       let currentUser = new ObjectId(io.p2p.request.session.passport.user);
+      let now = moment().unix();
       let KBstage = await models.stageModel.findOne({
         KB: data.KB,
         current: true
       }).exec();
+      let coolDown = false;
       if(KBstage !== undefined) {
-        let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
-        let user =  await models.userModel.findOne({
-          _id: currentUser
-        }).exec();
-        let autherizedTags = _.flatten([KBstage.pmTags, KBstage.reviewerTags, KBstage.writerTags, KBstage.vendorTags, globalSetting.settingTags]);
-        let tagCheck = false;
-        for(let i=0; i< user.tags.length; i++) {
-          let tag = user.tags[i];
-          if(!tagCheck) {
-            tagCheck = _.find(autherizedTags, (aTag) => {
-              return aTag.equals(tag);
-            }) !== undefined ? true : false;
+        if(data.parent == undefined) {
+          if(KBstage.coolDown) {
+            coolDown = true;
           }
         }
-        if(tagCheck) {
-          var issue = await models.issueModel.create({ 
-            tick: moment().unix(),
-            attachments: [],
-            user: new ObjectId(io.p2p.request.session.passport.user),
-            KB: data.KB,
-            version: data.version,
-            parent: data.parent === undefined || data.parent === null ? undefined : new ObjectId(data.parent),
-            status: false,
-            star: false,
-            objective: data.objective,
-            position: data.position
-          });
-          io.p2p.emit('addIssue', {
-            _id: issue._id,
-            parent: issue.parent
-          });
+        if(!coolDown) {
+          let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+          let user =  await models.userModel.findOne({
+            _id: currentUser
+          }).exec();
+          let autherizedTags = _.flatten([KBstage.pmTags, KBstage.reviewerTags, KBstage.writerTags, KBstage.vendorTags, globalSetting.settingTags]);
+          let tagCheck = false;
+          for(let i=0; i< user.tags.length; i++) {
+            let tag = user.tags[i];
+            if(!tagCheck) {
+              tagCheck = _.find(autherizedTags, (aTag) => {
+                return aTag.equals(tag);
+              }) !== undefined ? true : false;
+            }
+          }
+          if(tagCheck) {
+            let issue = null;
+            if(data.parent === undefined || data.parent === null) {
+              issue = await models.issueModel.create({ 
+                tick: now,
+                attachments: [],
+                user: currentUser,
+                KB: data.KB,
+                version: data.version,
+                parent: undefined,
+                status: false,
+                star: false,
+                sealed: false,
+                objective: data.objective,
+                position: data.position
+              });
+              await models.readedIssueModel.create({
+                user: currentUser,
+                issue: issue._id,
+                tick: now
+              });
+              io.p2p.emit('addIssue', {
+                _id: issue._id,
+                parent: issue.parent
+              });
+            } else {
+              let parentID = new ObjectId(data.parent);
+              let parentIssue = await models.issueModel.findOne({
+                _id: parentID
+              }).exec();
+              if(!parentIssue.status) {
+                issue = await models.issueModel.create({ 
+                  tick: now,
+                  attachments: [],
+                  user: currentUser,
+                  KB: data.KB,
+                  version: data.version,
+                  parent: parentID,
+                  status: false,
+                  star: false,
+                  sealed: false,
+                  objective: data.objective,
+                  position: data.position
+                });
+                await models.readedIssueModel.create({
+                  user: currentUser,
+                  issue: issue._id,
+                  tick: now
+                });
+                io.p2p.emit('addIssue', {
+                  _id: issue._id,
+                  parent: issue.parent
+                });
+              } else {
+                io.p2p.emit('accessViolation', {
+                  where: '知識點審查',
+                  tick: moment().unix(),
+                  action: 'Issue已關閉，無法新增',
+                  loginRequire: false
+                });
+              }
+            }
+          } else {
+            io.p2p.emit('accessViolation', {
+              where: '知識點審查',
+              tick: moment().unix(),
+              action: '新增Issue',
+              loginRequire: false
+            });
+          }
         } else {
           io.p2p.emit('accessViolation', {
             where: '知識點審查',

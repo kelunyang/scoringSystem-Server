@@ -11,6 +11,7 @@ module.exports = function (mongoose) {
         passTick: Number,
         startTick: Number,
         sort: Number,
+        coolDown: Boolean,
         objectives: [
             {
                 type: ObjectID,

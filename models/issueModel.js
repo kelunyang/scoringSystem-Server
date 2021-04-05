@@ -31,6 +31,7 @@ module.exports = function (mongoose) {
         ],
         status: Boolean,
         star: Boolean,
+        sealed: Boolean,
         parent: {
             type: ObjectID,
             ref: 'issueModel'
