@@ -8,6 +8,7 @@ const _ = require('lodash');
 const stripBOM = require('strip-bom');
 const mime = require('mime-types');
 const { ObjectId } = require('bson');
+const stream = require('stream');
 
 let files = {}, 
     struct = { 
@@ -22,8 +23,8 @@ module.exports = (io, models) => {
   io.p2p.on('deleteMsgFile', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       try {
-        let exist = await fs.access('/var/www/frontend/storages/' + data.fileID);
-        if(exist) { await fs.remove('/var/www/frontend/storages/' + data.fileID); }
+        let exist = await fs.access('/var/www/storages/' + data.fileID);
+        if(exist) { await fs.remove('/var/www/storages/' + data.fileID); }
         await models.fileModel.deleteOne({
           _id: data.fileID
         }).populate('attachments').exec();
@@ -37,9 +38,10 @@ module.exports = (io, models) => {
         return io.p2p.emit('getmsgAttachment', msg.attachments);
       } catch(err) {
         console.log(JSON.stringify(err));
-        return io.p2p.emit('msgFileDeleteError', JSON.stringify(err)); 
+        io.p2p.emit('msgFileDeleteError', JSON.stringify(err)); 
       }
     }
+    return;
   }); 
 
   io.p2p.on('sendMsgFile', async (data) => {
@@ -48,9 +50,7 @@ module.exports = (io, models) => {
         files[data.uuid] = Object.assign({}, struct, data); 
         files[data.uuid].data = []; 
       }
-      //convert the ArrayBuffer to Buffer
       data.data = Buffer.from(new Uint8Array(data.data)); 
-      //save the data 
       files[data.uuid].data.push(data.data); 
       files[data.uuid].slice++;
       if (files[data.uuid].slice * 100000 >= files[data.uuid].size) { 
@@ -85,13 +85,14 @@ module.exports = (io, models) => {
         }); 
       } 
     }
+    return;
   });
 
   io.p2p.on('deletefeedbackFile', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       try {
-        let exist = await fs.access('/var/www/frontend/storages/' + data.fileID);
-        if(exist) { await fs.remove('/var/www/frontend/storages/' + data.fileID); }
+        let exist = await fs.access('/var/www/storages/' + data.fileID);
+        if(exist) { await fs.remove('/var/www/storages/' + data.fileID); }
         await models.fileModel.deleteOne({
           _id: data.fileID
         }).exec();
@@ -102,12 +103,13 @@ module.exports = (io, models) => {
           return !att._id.equals(data.fileID);
         });
         await feedback.save();
-        return io.p2p.emit('getfeedbackAttachment', feedback.attachments);
+        io.p2p.emit('getfeedbackAttachment', feedback.attachments);
       } catch(err) {
         console.log(JSON.stringify(err));
-        return io.p2p.emit('feedbackFileDeleteError', JSON.stringify(err)); 
+        io.p2p.emit('feedbackFileDeleteError', JSON.stringify(err)); 
       }
     }
+    return;
   }); 
 
   io.p2p.on('sendfeedbackFile', async (data) => {
@@ -130,7 +132,7 @@ module.exports = (io, models) => {
           writeConfirm: false
         });
         try {
-          await fs.outputFile('/var/www/frontend/storages/' + file._id, fileBuffer, "binary");
+          await fs.outputFile('/var/www/storages/' + file._id, fileBuffer, "binary");
           delete files[data.uuid]; 
           file.status = 1;
           file.writeConfirm = true;
@@ -151,13 +153,14 @@ module.exports = (io, models) => {
         }); 
       } 
     }
+    return;
   });
 
   io.p2p.on('deleteissueFile', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       try {
-        let exist = await fs.access('/var/www/frontend/storages/' + data.fileID);
-        if(exist) { await fs.remove('/var/www/frontend/storages/' + data.fileID); }
+        let exist = await fs.access('/var/www/storages/' + data.fileID);
+        if(exist) { await fs.remove('/var/www/storages/' + data.fileID); }
         await models.fileModel.deleteOne({
           _id: data.fileID
         }).exec();
@@ -167,12 +170,13 @@ module.exports = (io, models) => {
         issue.attachments = issue.attachments.filter((att) => {
           return !att._id.equals(data.fileID);
         });
-        return io.p2p.emit('getissueAttachment', issue.attachments);
+        io.p2p.emit('getissueAttachment', issue.attachments);
       } catch(err) {
         console.log(JSON.stringify(err));
-        return io.p2p.emit('issueFileDeleteError', JSON.stringify(err)); 
+        io.p2p.emit('issueFileDeleteError', JSON.stringify(err)); 
       }
     }
+    return;
   }); 
 
   io.p2p.on('sendissueFile', async (data) => {
@@ -181,9 +185,7 @@ module.exports = (io, models) => {
         files[data.uuid] = Object.assign({}, struct, data); 
         files[data.uuid].data = []; 
       }
-      //convert the ArrayBuffer to Buffer
       data.data = Buffer.from(new Uint8Array(data.data)); 
-      //save the data 
       files[data.uuid].data.push(data.data); 
       files[data.uuid].slice++;
       if (files[data.uuid].slice * 100000 >= files[data.uuid].size) { 
@@ -197,7 +199,7 @@ module.exports = (io, models) => {
           writeConfirm: false
         });
         try {
-          await fs.outputFile('/var/www/frontend/storages/' + file._id, fileBuffer, "binary");
+          await fs.outputFile('/var/www/storages/' + file._id, fileBuffer, "binary");
           delete files[data.uuid]; 
           file.status = 1;
           file.writeConfirm = true;
@@ -218,13 +220,14 @@ module.exports = (io, models) => {
         }); 
       } 
     }
+    return;
   });
 
   io.p2p.on('deleteKBVersion', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       try {
-        let exist = await fs.access('/var/www/frontend/storages/' + data.fileID);
-        if(exist) { await fs.remove('/var/www/frontend/storages/' + data.fileID); }
+        let exist = await fs.access('/var/www/storages/' + data.fileID);
+        if(exist) { await fs.remove('/var/www/storages/' + data.fileID); }
         await models.fileModel.deleteOne({
           _id: data.fileID
         }).exec();
@@ -235,12 +238,13 @@ module.exports = (io, models) => {
           return !att._id.equals(data.fileID);
         });
         await KB.save();
-        return io.p2p.emit('getKBVersions', KB.versions);
+        io.p2p.emit('getKBVersions', KB.versions);
       } catch(err) {
         console.dir(err);
-        return io.p2p.emit('KBVersionDeleteError', JSON.stringify(err)); 
+        io.p2p.emit('KBVersionDeleteError', JSON.stringify(err)); 
       }
     }
+    return;
   }); 
 
   io.p2p.on('sendKBVersion', async (data) => {
@@ -266,7 +270,7 @@ module.exports = (io, models) => {
           writeConfirm: false
         });
         try {
-          await fs.outputFile('/var/www/frontend/storages/' + file._id, fileBuffer, "binary");
+          await fs.outputFile('/var/www/storages/' + file._id, fileBuffer, "binary");
           delete files[data.uuid]; 
           file.status = 1;
           file.writeConfirm = true;
@@ -287,13 +291,14 @@ module.exports = (io, models) => {
         }); 
       } 
     }
+    return;
   });
 
   io.p2p.on('deleteKBFile', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       try {
-        let exist = await fs.access('/var/www/frontend/storages/' + data.fileID);
-        if(exist) { await fs.remove('/var/www/frontend/storages/' + data.fileID); }
+        let exist = await fs.access('/var/www/storages/' + data.fileID);
+        if(exist) { await fs.remove('/var/www/storages/' + data.fileID); }
         await models.fileModel.deleteOne({
           _id: data.fileID
         }).exec();
@@ -304,12 +309,13 @@ module.exports = (io, models) => {
           return !att._id.equals(data.fileID);
         });
         await KB.save();
-        return io.p2p.emit('getKBAttachment', KB.descAtt);
+        io.p2p.emit('getKBAttachment', KB.descAtt);
       } catch(err) {
         console.dir(err);
-        return io.p2p.emit('KBFileDeleteError', JSON.stringify(err)); 
+        io.p2p.emit('KBFileDeleteError', JSON.stringify(err)); 
       }
     }
+    return;
   }); 
 
   io.p2p.on('sendKBFile', async (data) => {
@@ -334,7 +340,7 @@ module.exports = (io, models) => {
           writeConfirm: false
         });
         try {
-          await fs.outputFile('/var/www/frontend/storages/' + file._id, fileBuffer, "binary");
+          await fs.outputFile('/var/www/storages/' + file._id, fileBuffer, "binary");
           delete files[data.uuid]; 
           file.status = 1;
           file.writeConfirm = true;
@@ -346,7 +352,7 @@ module.exports = (io, models) => {
           KB.save();
           io.p2p.emit('KBFileUploadDone', KB._id);
         } catch (err) {
-          return io.p2p.emit('KBFileUploadError', JSON.stringify(err)); 
+          io.p2p.emit('KBFileUploadError', JSON.stringify(err)); 
         };
       } else { 
         io.p2p.emit('requestKBSlice', { 
@@ -355,6 +361,7 @@ module.exports = (io, models) => {
         }); 
       } 
     }
+    return;
   });
 
   io.p2p.on('importKBZip', async (data) => {
@@ -393,91 +400,93 @@ module.exports = (io, models) => {
                   let mongoFile = null;
                   let csvContent = Papa.parse(content, {
                     header: true,
-                    skipEmptyLines: true
-                  });
-                  io.p2p.emit('KBZipReport', 'CSV檔讀入完成，分析結構中');
-                  let chapters = _.uniq(_.map(csvContent.data, '大分類名稱'));
-                  io.p2p.emit('KBZipReport', 'CSV檔中有' + chapters.length + '個大分類');
-                  let tagChapter = await models.chapterModel.find({
-                    tag: { $in: tag }
-                  }).exec();
-                  for(let k=0; k<chapters.length; k++) {
-                    let chapter = chapters[k];
-                    mongoChapter = await models.chapterModel.create({
-                      createDate: now,
-                      modDate: now,
-                      title: chapter,
-                      sort: k + tagChapter.length,
-                      user: new ObjectId(io.p2p.request.session.passport.user),
-                      tag: [tag],
-                      KBs: []
-                    })
-                    let KBs = _.filter(csvContent.data, {
-                      '大分類名稱': chapter
-                    });
-                    let chapterKB = [];
-                    for(let b=0; b<KBs.length; b++) {
-                      let KB = KBs[b];
-                      io.p2p.emit('KBZipReport', '匯入：' + chapter + '/' + KB['知識點名稱'] + '中...');
-                      mongoKB= await models.KBModel.create({
-                        createDate: now,
-                        modDate: now,
-                        title: KB['知識點名稱'],
-                        sort: b,
-                        user: new ObjectId(io.p2p.request.session.passport.user),
-                        desc: KB['細部內容'],
-                        tag: [tag],
-                        textbook: KB['課綱學習內容'],
-                        chapter: mongoChapter._id,
-                        stages: [],
-                        eventLog: [],
-                        issues: [],
-                        versions: [],
-                        descAtt: []
-                      });
-                      chapterKB.push(mongoKB._id);
-                      let descAtt = _.filter(zip.files, (item) => {
-                        return  (new RegExp('^\\[' + KB['序號']+'\\]')).test(item.name);
-                      });
-                      let KBdescAtt = [];
-                      io.p2p.emit('KBZipReport', '匯入' + KB['知識點名稱'] + '的附件... 共' + descAtt.length + '件');
-                      for(let i=0; i<descAtt.length; i++) {
-                        let file = descAtt[i];
-                        mongoFile = await models.fileModel.create({
-                          name: file.name,
-                          status: 1,
-                          size: file._data.uncompressedSize,
-                          type: mime.lookup(file.name),
-                          writeConfirm: false
+                    skipEmptyLines: true,
+                    complete: async function() {
+                      io.p2p.emit('KBZipReport', 'CSV檔讀入完成，分析結構中');
+                      let chapters = _.uniq(_.map(csvContent.data, '大分類名稱'));
+                      io.p2p.emit('KBZipReport', 'CSV檔中有' + chapters.length + '個大分類');
+                      let tagChapter = await models.chapterModel.find({
+                        tag: { $in: tag }
+                      }).exec();
+                      for(let k=0; k<chapters.length; k++) {
+                        let chapter = chapters[k];
+                        mongoChapter = await models.chapterModel.create({
+                          createDate: now,
+                          modDate: now,
+                          title: chapter,
+                          sort: k + tagChapter.length,
+                          user: new ObjectId(io.p2p.request.session.passport.user),
+                          tag: [tag],
+                          KBs: []
+                        })
+                        let KBs = _.filter(csvContent.data, {
+                          '大分類名稱': chapter
                         });
-                        KBdescAtt.push(mongoFile._id);
-                        zip
-                        .file(file.name)
-                        .nodeStream()
-                        .pipe(fs.createWriteStream('/var/www/frontend/storages/' + mongoFile._id))
-                        .on('finish', async function () {
-                          await models.fileModel.updateOne({
-                            _id: mongoFile._id
-                          }, {
-                            writeConfirm: true
+                        let chapterKB = [];
+                        for(let b=0; b<KBs.length; b++) {
+                          let KB = KBs[b];
+                          io.p2p.emit('KBZipReport', '匯入：' + chapter + '/' + KB['知識點名稱'] + '中...');
+                          mongoKB= await models.KBModel.create({
+                            createDate: now,
+                            modDate: now,
+                            title: KB['知識點名稱'],
+                            sort: b,
+                            user: new ObjectId(io.p2p.request.session.passport.user),
+                            desc: KB['細部內容'],
+                            tag: [tag],
+                            textbook: KB['課綱學習內容'],
+                            chapter: mongoChapter._id,
+                            stages: [],
+                            eventLog: [],
+                            issues: [],
+                            versions: [],
+                            descAtt: []
                           });
+                          chapterKB.push(mongoKB._id);
+                          let descAtt = _.filter(zip.files, (item) => {
+                            return  (new RegExp('^\\[' + KB['序號']+'\\]')).test(item.name);
+                          });
+                          let KBdescAtt = [];
+                          io.p2p.emit('KBZipReport', '匯入' + KB['知識點名稱'] + '的附件... 共' + descAtt.length + '件');
+                          for(let i=0; i<descAtt.length; i++) {
+                            let file = descAtt[i];
+                            mongoFile = await models.fileModel.create({
+                              name: file.name,
+                              status: 1,
+                              size: file._data.uncompressedSize,
+                              type: mime.lookup(file.name),
+                              writeConfirm: false
+                            });
+                            KBdescAtt.push(mongoFile._id);
+                            zip
+                            .file(file.name)
+                            .nodeStream()
+                            .pipe(fs.createWriteStream('/var/www/storages/' + mongoFile._id))
+                            .on('finish', async function () {
+                              await models.fileModel.updateOne({
+                                _id: mongoFile._id
+                              }, {
+                                writeConfirm: true
+                              });
+                            });
+                          }
+                          await models.KBModel.updateOne({
+                            _id: mongoKB._id
+                          }, {
+                            descAtt: KBdescAtt
+                          });
+                          io.p2p.emit('KBZipReport', KB['知識點名稱'] + '匯入完成！');
+                        }
+                        await models.chapterModel.updateOne({
+                          _id: mongoChapter._id
+                        }, {
+                          KBs: chapterKB
                         });
+                        io.p2p.emit('KBZipReport', chapter + '匯入完成！');
                       }
-                      await models.KBModel.updateOne({
-                        _id: mongoKB._id
-                      }, {
-                        descAtt: KBdescAtt
-                      });
-                      io.p2p.emit('KBZipReport', KB['知識點名稱'] + '匯入完成！');
+                      io.p2p.emit('KBZipReport', '匯入完成！');
                     }
-                    await models.chapterModel.updateOne({
-                      _id: mongoChapter._id
-                    }, {
-                      KBs: chapterKB
-                    });
-                    io.p2p.emit('KBZipReport', chapter + '匯入完成！');
-                  }
-                  io.p2p.emit('KBZipReport', '匯入完成！');
+                  });
                 } catch (e) {
                   io.p2p.emit('KBZipReport', '匯入知識點發生錯誤（代碼：' + JSON.stringify(e) +'），建議重新下載範例重作，如重複發生，請把代碼複製給管理員');
                 }
@@ -492,7 +501,7 @@ module.exports = (io, models) => {
           io.p2p.emit('refreshKB', true);
         } catch (err) {
           console.dir(err);
-          return io.p2p.emit('KBZipUploadError', JSON.stringify(err)); 
+          io.p2p.emit('KBZipUploadError', JSON.stringify(err)); 
         };
       } else { 
         io.p2p.emit('requestKBZipSlice', { 
@@ -501,6 +510,101 @@ module.exports = (io, models) => {
         }); 
       } 
     }
+    return;
+  });
+
+  io.p2p.on('importKBstatistics', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if (!files[data.uuid]) { 
+        files[data.uuid] = Object.assign({}, struct, data); 
+        files[data.uuid].data = [];
+        files[data.uuid].typeTags = data.typeTags;
+        files[data.uuid].sourceTag = data.sourceTag;
+      }
+      data.data = Buffer.from(new Uint8Array(data.data)); 
+      files[data.uuid].data.push(data.data); 
+      files[data.uuid].slice++;
+      if (files[data.uuid].slice * 100000 >= files[data.uuid].size) { 
+        let fileBuffer = Buffer.concat(files[data.uuid].data);
+        let sourceTag = new ObjectId(files[data.uuid].sourceTag);
+        let typeTags = _.map(files[data.uuid].typeTags, (tag) => {
+          return new ObjectId(tag);
+        });
+        try {
+          io.p2p.emit('KBstatisticsUploadDone');
+          io.p2p.emit('KBstatisticsReport', '讀入csv檔案...');
+          let now = moment().unix();
+          let readStream = new stream.PassThrough();
+          readStream.end(fileBuffer);
+          Papa.parse(readStream, {
+            header: false,
+            skipEmptyLines: true,
+            complete: async (result) => {
+              let fails = new Set();
+              try {
+                io.p2p.emit('KBstatisticsReport', '分析csv...');
+                let dates = [];
+                for(let i=1; i< result.data[0].length; i++) {
+                  let date = result.data[0][i];
+                  dates.push(moment(date, "YYYY/MM/DD").unix());
+                }
+                io.p2p.emit('KBstatisticsReport', '匯入統計資料庫');
+                for(let i=1; i< result.data.length; i++) {
+                  let data = result.data[i];
+                  let KBtitle = data[0].trim();
+                  let KB = await models.KBModel.findOne({
+                    title: KBtitle
+                  }).exec();
+                  if(KB !== null) {
+                    for(let k=1; k<data.length; k++) {
+                      let oldstatistics = await models.statisticsKBModel.findOne({
+                        KB: KB._id,
+                        logTick: dates[k-1],
+                        typeTags: typeTags,
+                        sourceTag: sourceTag
+                      }).exec();
+                      if(oldstatistics === null) {
+                        io.p2p.emit('KBstatisticsReport', '匯入' + KB.title + '於' + moment.unix(dates[k-1]).format('YYYY/MM/DD') + '的數據中...');
+                        await models.statisticsKBModel.create({
+                          KB: KB._id,
+                          logTick: dates[k-1],
+                          sourceTag: sourceTag,
+                          typeTags: typeTags,
+                          value: data[k]
+                        });
+                      } else {
+                        fails.add(KBtitle + '已有重複資料');
+                      }
+                    }
+                  } else {
+                    fails.add(KBtitle + '找不到知識點');
+                  }
+                }
+                setTimeout(() => {
+                  io.p2p.emit('KBstatisticsReport', '匯入完成！');
+                }, 10000);
+              } catch (e) {
+                console.dir(e);
+                setTimeout(() => {
+                  io.p2p.emit('KBstatisticsReport', '匯入失敗！');
+                }, 10000);
+              }
+              io.p2p.emit('importKBstatistics', Array.from(fails));
+            }
+          });
+          delete files[data.uuid];
+        } catch (err) {
+          console.dir(err);
+          return io.p2p.emit('KBstatisticsUploadError', JSON.stringify(err)); 
+        };
+      } else { 
+        io.p2p.emit('requestKBstatisticsSlice', { 
+            currentSlice: files[data.uuid].slice,
+            uuid: data.uuid
+        }); 
+      } 
+    }
+    return;
   });
 
   return router;

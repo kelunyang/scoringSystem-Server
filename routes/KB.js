@@ -113,11 +113,14 @@ module.exports = (io, models) => {
       }).exec();
       io.p2p.emit('getChapters', chapters);
     }
+    return;
   };
+
   io.p2p.on('getChapters', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       await allChapterListed(data);
     }
+    return;
   });
 
   io.p2p.on('joinKBEditing', async (data) => {
@@ -131,21 +134,15 @@ module.exports = (io, models) => {
       let KBstage = _.find(KB.stages, (stage) => {
         return stage.current;
       });
-      let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+      let globalSetting = await models.settingModel.findOne({}).exec();
       let currentUser = new ObjectId(io.p2p.request.session.passport.user);
       let user =  await models.userModel.findOne({
         _id: currentUser
       }).exec();
       let autherizedTags = _.flatten([KBstage.pmTags, KBstage.writerTags, KBstage.reviewerTags, KBstage.vendorTags, KBstage.finalTags,globalSetting.settingTags]);
-      let tagCheck = false;
-      for(let i=0; i< user.tags.length; i++) {
-        let tag = user.tags[i];
-        if(!tagCheck) {
-          tagCheck = _.find(autherizedTags, (aTag) => {
-            return aTag.equals(tag);
-          }) !== undefined ? true : false;
-        }
-      }
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(aTag);
+      })).length > 0;
       if(tagCheck) {
         if(KB !== undefined) {
           io.p2p.join('/' + KB._id);
@@ -159,6 +156,7 @@ module.exports = (io, models) => {
         });
       }
     }
+    return;
   });
 
   io.p2p.on('leaveKBEditing', async (data) => {
@@ -172,21 +170,15 @@ module.exports = (io, models) => {
       let KBstage = _.find(KB.stages, (stage) => {
         return stage.current;
       });
-      let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+      let globalSetting = await models.settingModel.findOne({}).exec();
       let currentUser = new ObjectId(io.p2p.request.session.passport.user);
       let user =  await models.userModel.findOne({
         _id: currentUser
       }).exec();
       let autherizedTags = _.flatten([KBstage.pmTags, KBstage.writerTags, KBstage.reviewerTags, KBstage.vendorTags, KBstage.finalTags,globalSetting.settingTags]);
-      let tagCheck = false;
-      for(let i=0; i< user.tags.length; i++) {
-        let tag = user.tags[i];
-        if(!tagCheck) {
-          tagCheck = _.find(autherizedTags, (aTag) => {
-            return aTag.equals(tag);
-          }) !== undefined ? true : false;
-        }
-      }
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(aTag);
+      })).length > 0;
       if(tagCheck) {
         if(KB !== undefined) {
           io.p2p.leave('/' + KB._id);
@@ -200,18 +192,21 @@ module.exports = (io, models) => {
         });
       }
     }
+    return;
   });
 
   io.p2p.on('getKB', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      getKB(data);
+      await getKB(data);
     }
+    return;
   });
 
   io.p2p.on('getReadedIssue', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      getReadedIssues();
+      await getReadedIssues();
     }
+    return;
   });
 
   io.p2p.on('setReadedIssue', async (data) => {
@@ -257,7 +252,7 @@ module.exports = (io, models) => {
       ]);
       let xorList = [];
       if(readedList.length > 0) {
-        xorList = _.xorWith(readedList[0].issues, issueList, (a, b) => {
+        xorList = _.differenceWith(issueList, readedList[0].issues, (a, b) => {
           return a.equals(b);
         });
       } else {
@@ -273,27 +268,22 @@ module.exports = (io, models) => {
         });
       }
       await models.readedIssueModel.insertMany(newReadeds);
-      getReadedIssues();
+      await getReadedIssues();
     }
+    return;
   });
 
   io.p2p.on('addChapter', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+      let globalSetting = await models.settingModel.findOne({}).exec();
       let currentUser = new ObjectId(io.p2p.request.session.passport.user);
       let user =  await models.userModel.findOne({
         _id: currentUser
       }).exec();
       let autherizedTags = _.flatten([globalSetting.settingTags, globalSetting.projectTags]);
-      let tagCheck = false;
-      for(let i=0; i< user.tags.length; i++) {
-        let tag = user.tags[i];
-        if(!tagCheck) {
-          tagCheck = _.find(autherizedTags, (aTag) => {
-            return aTag.equals(tag);
-          }) !== undefined ? true : false;
-        }
-      }
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(aTag);
+      })).length > 0;
       if(tagCheck) {
         let now = moment().unix();
         let tagID = new ObjectId(data);
@@ -320,25 +310,20 @@ module.exports = (io, models) => {
         });
       }
     }
+    return;
   });
 
   io.p2p.on('setChapter', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+      let globalSetting = await models.settingModel.findOne({}).exec();
       let currentUser = new ObjectId(io.p2p.request.session.passport.user);
       let user =  await models.userModel.findOne({
         _id: currentUser
       }).exec();
       let autherizedTags = _.flatten([globalSetting.settingTags, globalSetting.projectTags]);
-      let tagCheck = false;
-      for(let i=0; i< user.tags.length; i++) {
-        let tag = user.tags[i];
-        if(!tagCheck) {
-          tagCheck = _.find(autherizedTags, (aTag) => {
-            return aTag.equals(tag);
-          }) !== undefined ? true : false;
-        }
-      }
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(aTag);
+      })).length > 0;
       if(tagCheck) {
         var chapter = await models.chapterModel.findOne({
           _id: new ObjectId(data._id)
@@ -357,25 +342,20 @@ module.exports = (io, models) => {
         });
       }
     }
+    return;
   });
 
   io.p2p.on('saveSort', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+      let globalSetting = await models.settingModel.findOne({}).exec();
       let currentUser = new ObjectId(io.p2p.request.session.passport.user);
       let user =  await models.userModel.findOne({
         _id: currentUser
       }).exec();
       let autherizedTags = _.flatten([globalSetting.settingTags, globalSetting.projectTags]);
-      let tagCheck = false;
-      for(let i=0; i< user.tags.length; i++) {
-        let tag = user.tags[i];
-        if(!tagCheck) {
-          tagCheck = _.find(autherizedTags, (aTag) => {
-            return aTag.equals(tag);
-          }) !== undefined ? true : false;
-        }
-      }
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(aTag);
+      })).length > 0;
       if(tagCheck) {
         let now = moment().unix();
         for(let i=0; i<data.DB.length; i++) {
@@ -426,25 +406,20 @@ module.exports = (io, models) => {
         });
       }
     }
+    return;
   });
 
   io.p2p.on('removeChapter', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+      let globalSetting = await models.settingModel.findOne({}).exec();
       let currentUser = new ObjectId(io.p2p.request.session.passport.user);
       let user =  await models.userModel.findOne({
         _id: currentUser
       }).exec();
       let autherizedTags = _.flatten([globalSetting.settingTags, globalSetting.projectTags]);
-      let tagCheck = false;
-      for(let i=0; i< user.tags.length; i++) {
-        let tag = user.tags[i];
-        if(!tagCheck) {
-          tagCheck = _.find(autherizedTags, (aTag) => {
-            return aTag.equals(tag);
-          }) !== undefined ? true : false;
-        }
-      }
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(aTag);
+      })).length > 0;
       if(tagCheck) {
         let chapterID = new ObjectId(data._id);
         let chapter = await models.chapterModel.findOne({ 
@@ -522,25 +497,20 @@ module.exports = (io, models) => {
         });
       }
     }
+    return;
   });
 
   io.p2p.on('addKB', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+      let globalSetting = await models.settingModel.findOne({}).exec();
       let currentUser = new ObjectId(io.p2p.request.session.passport.user);
       let user =  await models.userModel.findOne({
         _id: currentUser
       }).exec();
       let autherizedTags = _.flatten([globalSetting.settingTags, globalSetting.projectTags]);
-      let tagCheck = false;
-      for(let i=0; i< user.tags.length; i++) {
-        let tag = user.tags[i];
-        if(!tagCheck) {
-          tagCheck = _.find(autherizedTags, (aTag) => {
-            return aTag.equals(tag);
-          }) !== undefined ? true : false;
-        }
-      }
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(aTag);
+      })).length > 0;
       if(tagCheck) {
         let now = moment().unix();
         let chapterID = new ObjectId(data.chapter);
@@ -587,25 +557,20 @@ module.exports = (io, models) => {
         });
       }
     }
+    return;
   });
 
   io.p2p.on('setKB', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+      let globalSetting = await models.settingModel.findOne({}).exec();
       let currentUser = new ObjectId(io.p2p.request.session.passport.user);
       let user =  await models.userModel.findOne({
         _id: currentUser
       }).exec();
       let autherizedTags = _.flatten([globalSetting.settingTags, globalSetting.projectTags]);
-      let tagCheck = false;
-      for(let i=0; i< user.tags.length; i++) {
-        let tag = user.tags[i];
-        if(!tagCheck) {
-          tagCheck = _.find(autherizedTags, (aTag) => {
-            return aTag.equals(tag);
-          }) !== undefined ? true : false;
-        }
-      }
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(aTag);
+      })).length > 0;
       if(tagCheck) {
         let now = moment().unix();
         var KB = await models.KBModel.findOne({ 
@@ -637,25 +602,20 @@ module.exports = (io, models) => {
         });
       }
     }
+    return;
   });
 
   io.p2p.on('removeKB', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+      let globalSetting = await models.settingModel.findOne({}).exec();
       let currentUser = new ObjectId(io.p2p.request.session.passport.user);
       let user =  await models.userModel.findOne({
         _id: currentUser
       }).exec();
       let autherizedTags = _.flatten([globalSetting.settingTags, globalSetting.projectTags]);
-      let tagCheck = false;
-      for(let i=0; i< user.tags.length; i++) {
-        let tag = user.tags[i];
-        if(!tagCheck) {
-          tagCheck = _.find(autherizedTags, (aTag) => {
-            return aTag.equals(tag);
-          }) !== undefined ? true : false;
-        }
-      }
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(aTag);
+      })).length > 0;
       if(tagCheck) {
         let KBtag = '';
         for(let i=0;i<data.KBs.length;i++) {
@@ -727,25 +687,20 @@ module.exports = (io, models) => {
         });
       }
     }
+    return;
   });
 
   io.p2p.on('addStage', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+      let globalSetting = await models.settingModel.findOne({}).exec();
       let currentUser = new ObjectId(io.p2p.request.session.passport.user);
       let user =  await models.userModel.findOne({
         _id: currentUser
       }).exec();
       let autherizedTags = _.flatten([globalSetting.settingTags, globalSetting.projectTags]);
-      let tagCheck = false;
-      for(let i=0; i< user.tags.length; i++) {
-        let tag = user.tags[i];
-        if(!tagCheck) {
-          tagCheck = _.find(autherizedTags, (aTag) => {
-            return aTag.equals(tag);
-          }) !== undefined ? true : false;
-        }
-      }
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(aTag);
+      })).length > 0;
       if(tagCheck) {
         let now = moment().unix();
         let KBID = new ObjectId(data._id);
@@ -789,31 +744,77 @@ module.exports = (io, models) => {
         });
       }
     }
+    return;
   });
 
   io.p2p.on('getStage', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      getStage(data, disableBroadcast);
+      await getStage(data, disableBroadcast);
     }
+    return;
+  });
+
+  io.p2p.on('setKBTag', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      console.log
+      let KBID = new ObjectId(data._id);
+      let userID = new ObjectId(io.p2p.request.session.passport.user);
+      let globalSetting = await models.settingModel.findOne({}).exec();
+      let currentUser = userID;
+      let user =  await models.userModel.findOne({
+        _id: currentUser
+      }).exec();
+      let KB = await models.KBModel.findOne({
+        _id: KBID
+      }).exec();
+      let KBstage = await models.stageModel.findOne({
+        current: true,
+        KB: KBID
+      }).exec();
+      let autherizedTags = _.flatten([globalSetting.settingTags, globalSetting.projectTags, KBstage.pmTags]);
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(aTag);
+      })).length > 0;
+      if(tagCheck) {
+        let now = moment().unix();
+        await models.KBModel.updateOne({
+          _id: KBID
+        },{
+          tag: data.tag
+        });
+        let event = await models.eventlogModel.create({
+          tick: now,
+          type: '知識點操作',
+          desc: '設定知識點標籤',
+          KB: KBID,
+          user: userID
+        });
+        KB.eventLog.push(event._id);
+        await KB.save();
+        io.p2p.emit('setKBTag', true);
+      } else {
+        io.p2p.emit('accessViolation', {
+          where: '知識點操作',
+          tick: moment().unix(),
+          action: '設定知識點標籤',
+          loginRequire: true
+        });
+      }
+    }
+    return;
   });
 
   io.p2p.on('addObjective', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+      let globalSetting = await models.settingModel.findOne({}).exec();
       let currentUser = new ObjectId(io.p2p.request.session.passport.user);
       let user =  await models.userModel.findOne({
         _id: currentUser
       }).exec();
       let autherizedTags = _.flatten([globalSetting.settingTags, globalSetting.projectTags]);
-      let tagCheck = false;
-      for(let i=0; i< user.tags.length; i++) {
-        let tag = user.tags[i];
-        if(!tagCheck) {
-          tagCheck = _.find(autherizedTags, (aTag) => {
-            return aTag.equals(tag);
-          }) !== undefined ? true : false;
-        }
-      }
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(aTag);
+      })).length > 0;
       if(tagCheck) {
         let KBID = new ObjectId(data.KB);
         let stageID = new ObjectId(data.stage);
@@ -841,7 +842,7 @@ module.exports = (io, models) => {
         });
         KB.eventLog.push(event._id);
         await KB.save();
-        getStage(stageID, enableBroadcast);
+        await getStage(stageID, enableBroadcast);
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點編輯',
@@ -851,6 +852,7 @@ module.exports = (io, models) => {
         });
       }
     }
+    return;
   });
 
   io.p2p.on('setObjective', async (data) => {
@@ -859,21 +861,15 @@ module.exports = (io, models) => {
         current: true,
         KB: new ObjectId(data.KB)
       }).exec();
-      let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+      let globalSetting = await models.settingModel.findOne({}).exec();
       let currentUser = new ObjectId(io.p2p.request.session.passport.user);
       let user =  await models.userModel.findOne({
         _id: currentUser
       }).exec();
       let autherizedTags = _.flatten([KBstage.reviewerTags, KBstage.pmTags,globalSetting.settingTags]);
-      let tagCheck = false;
-      for(let i=0; i< user.tags.length; i++) {
-        let tag = user.tags[i];
-        if(!tagCheck) {
-          tagCheck = _.find(autherizedTags, (aTag) => {
-            return aTag.equals(tag);
-          }) !== undefined ? true : false;
-        }
-      }
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(aTag);
+      })).length > 0;
       if(tagCheck) {
         let KBID = new ObjectId(data.KB);
         let stageID = new ObjectId(data.stage);
@@ -935,7 +931,7 @@ module.exports = (io, models) => {
         });
         KB.eventLog.push(event._id);
         await KB.save();
-        getStage(stageID, enableBroadcast);
+        await getStage(stageID, enableBroadcast);
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點操作',
@@ -945,25 +941,20 @@ module.exports = (io, models) => {
         });
       }
     }
+    return;
   });
 
   io.p2p.on('removeObjective', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+      let globalSetting = await models.settingModel.findOne({}).exec();
       let currentUser = new ObjectId(io.p2p.request.session.passport.user);
       let user =  await models.userModel.findOne({
         _id: currentUser
       }).exec();
       let autherizedTags = _.flatten([globalSetting.settingTags, globalSetting.projectTags]);
-      let tagCheck = false;
-      for(let i=0; i< user.tags.length; i++) {
-        let tag = user.tags[i];
-        if(!tagCheck) {
-          tagCheck = _.find(autherizedTags, (aTag) => {
-            return aTag.equals(tag);
-          }) !== undefined ? true : false;
-        }
-      }
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(aTag);
+      })).length > 0;
       if(tagCheck) {
         let now = moment().unix();
         let OID = new ObjectId(data.OID);
@@ -993,7 +984,7 @@ module.exports = (io, models) => {
         });
         KB.eventLog.push(event._id);
         await KB.save();
-        getStage(stageID, enableBroadcast);
+        await getStage(stageID, enableBroadcast);
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點編輯',
@@ -1003,25 +994,20 @@ module.exports = (io, models) => {
         });
       }
     }
+    return;
   });
 
   io.p2p.on('setStage', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+      let globalSetting = await models.settingModel.findOne({}).exec();
       let currentUser = new ObjectId(io.p2p.request.session.passport.user);
       let user =  await models.userModel.findOne({
         _id: currentUser
       }).exec();
       let autherizedTags = _.flatten([globalSetting.settingTags, globalSetting.projectTags]);
-      let tagCheck = false;
-      for(let i=0; i< user.tags.length; i++) {
-        let tag = user.tags[i];
-        if(!tagCheck) {
-          tagCheck = _.find(autherizedTags, (aTag) => {
-            return aTag.equals(tag);
-          }) !== undefined ? true : false;
-        }
-      }
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(aTag);
+      })).length > 0;
       if(tagCheck) {
         let now = moment().unix();
         let sid = new ObjectId(data.stage._id);
@@ -1091,26 +1077,21 @@ module.exports = (io, models) => {
         });
       }
     }
+    return;
   });
 
   io.p2p.on('removeStage', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       if(data.stage._id !== '') {
-        let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+        let globalSetting = await models.settingModel.findOne({}).exec();
         let currentUser = new ObjectId(io.p2p.request.session.passport.user);
         let user =  await models.userModel.findOne({
           _id: currentUser
         }).exec();
         let autherizedTags = _.flatten([globalSetting.settingTags, globalSetting.projectTags]);
-        let tagCheck = false;
-        for(let i=0; i< user.tags.length; i++) {
-          let tag = user.tags[i];
-          if(!tagCheck) {
-            tagCheck = _.find(autherizedTags, (aTag) => {
-              return aTag.equals(tag);
-            }) !== undefined ? true : false;
-          }
-        }
+        let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+          return uTag.equals(aTag);
+        })).length > 0;
         if(tagCheck) {
           var stage = await models.stageModel.findOne({
             _id: new ObjectId(data.stage._id)
@@ -1139,25 +1120,20 @@ module.exports = (io, models) => {
         }
       }
     }
+    return;
   });
 
   io.p2p.on('cloneStages', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+      let globalSetting = await models.settingModel.findOne({}).exec();
       let currentUser = new ObjectId(io.p2p.request.session.passport.user);
       let user =  await models.userModel.findOne({
         _id: currentUser
       }).exec();
       let autherizedTags = _.flatten([globalSetting.settingTags, globalSetting.projectTags]);
-      let tagCheck = false;
-      for(let i=0; i< user.tags.length; i++) {
-        let tag = user.tags[i];
-        if(!tagCheck) {
-          tagCheck = _.find(autherizedTags, (aTag) => {
-            return aTag.equals(tag);
-          }) !== undefined ? true : false;
-        }
-      }
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(aTag);
+      })).length > 0;
       if(tagCheck) {
         let now = moment().unix();
         var stages = await models.stageModel.find({
@@ -1245,25 +1221,20 @@ module.exports = (io, models) => {
         });
       }
     }
+    return;
   });
 
   io.p2p.on('getKBAttachment', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+      let globalSetting = await models.settingModel.findOne({}).exec();
       let currentUser = new ObjectId(io.p2p.request.session.passport.user);
       let user =  await models.userModel.findOne({
         _id: currentUser
       }).exec();
       let autherizedTags = _.flatten([globalSetting.settingTags, globalSetting.projectTags]);
-      let tagCheck = false;
-      for(let i=0; i< user.tags.length; i++) {
-        let tag = user.tags[i];
-        if(!tagCheck) {
-          tagCheck = _.find(autherizedTags, (aTag) => {
-            return aTag.equals(tag);
-          }) !== undefined ? true : false;
-        }
-      }
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(aTag);
+      })).length > 0;
       if(tagCheck) {
         var collection = await models.KBModel.findOne({
           _id: data
@@ -1280,6 +1251,7 @@ module.exports = (io, models) => {
         });
       }
     }
+    return;
   });
 
   io.p2p.on('listDashBoard', async () => {
@@ -1371,10 +1343,14 @@ module.exports = (io, models) => {
       var collection = await models.KBModel.aggregate(queryObj);
       io.p2p.emit('listDashBoard', collection);
     }
+    return;
   });
 
   io.p2p.on('participantStatstics', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
+      let statistics = [];
+      let acceptedKBs = [];
+      let participantsIDs = [];
       let user = await models.userModel.findOne({
         _id: new ObjectId(io.p2p.request.session.passport.user)
       }).exec();
@@ -1401,7 +1377,8 @@ module.exports = (io, models) => {
           }
         }
       ]);
-      let acceptedKBs = checkedKB[0].KBs;
+      if(checkedKB.length > 0) {
+      acceptedKBs = checkedKB[0].KBs;
       let allParticipants = await models.stageModel.aggregate([
         {
           $match: {
@@ -1577,8 +1554,8 @@ module.exports = (io, models) => {
           }
         }
       ]);
-      let participantsIDs = _.map(allParticipants, '_id');
-      let statistics = await models.userModel.aggregate([
+      participantsIDs = _.map(allParticipants, '_id');
+      statistics = await models.userModel.aggregate([
         {
           $match: {
             _id: {
@@ -1850,12 +1827,14 @@ module.exports = (io, models) => {
           }
         }
       ]);
+      }
       io.p2p.emit('participantStatstics', {
         statistics: statistics,
         proceedKBs: acceptedKBs,
         proceedUsers: participantsIDs
       });
     }
+    return;
   });
 
   io.p2p.on('getKBVersions', async (data) => {
@@ -1900,8 +1879,9 @@ module.exports = (io, models) => {
         }
       ]);
       let returnArr = KB.length > 0 ? KB[0].versions : [];
-      return io.p2p.emit('getKBVersions', returnArr);
+      io.p2p.emit('getKBVersions', returnArr);
     }
+    return;
   });
 
   io.p2p.on('getlatestVersions', async (data) => {
@@ -2003,8 +1983,9 @@ module.exports = (io, models) => {
           }
         }
       ]);
-      return io.p2p.emit('getlatestVersions', latestVersions);
+      io.p2p.emit('getlatestVersions', latestVersions);
     }
+    return;
   });
 
   return router;

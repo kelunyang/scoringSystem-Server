@@ -36,15 +36,9 @@ module.exports = async (socket, models, [event], next) => {
                         _id: ObjectId(socket.request.session.passport.user)
                     }).sort({_id: 1}).exec();
                     if(action.authRange.length !== 0) {
-                        let found = false;
-                        for(let i = 0; i< action.authRange.length; i++) {
-                            let authTag = action.authRange[i];
-                            if(!found) {
-                                found = (_.findIndex(user.tags, (item) => {
-                                    return item.equals(authTag);
-                                })) === -1 ? false : true;
-                            }
-                        }
+                        let found = (_.intersectionWith(action.authRange, user.tags, (aTag, uTag) => {
+                            return aTag.equals(uTag);
+                        })).length > 0;
                         if(found) {
                             ma = authMapping['authGranted'];
                             delete socket.request.session.status;

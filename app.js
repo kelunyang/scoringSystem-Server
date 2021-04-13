@@ -7,7 +7,9 @@ const moment = require('moment');
 const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 let session = require('express-session');
-const mongoDB = 'mongodb://vrAdmin:cooc1234@localhost/videoReview';
+const fs = require('fs-extra');
+let mongoDBConnector = fs.readJsonSync('./mongoDBConnector.json');
+const mongoDB = 'mongodb://' + mongoDBConnector.account + ':' + mongoDBConnector.password + '@' + mongoDBConnector.host + '/' + mongoDBConnector.DBname;
 const MongoStore = require('connect-mongo')(session);
 const bcrypt = require('bcryptjs');
 const authSocket = require('./middleware/authSocket');
@@ -38,6 +40,7 @@ const chapterModel = require('./models/chapterModel')(mongoose);
 const stageModel = require('./models/stageModel')(mongoose);
 const objectiveModel = require('./models/objectiveModel')(mongoose);
 const readedIssueModel = require('./models/readedIssueModel')(mongoose);
+const statisticsKBModel = require('./models/statisticsKBModel')(mongoose);
 const modelList = {
     messageModel: systemmessageModel,
     logModel: logModel,
@@ -58,7 +61,8 @@ const modelList = {
     stageModel: stageModel,
     chapterModel: chapterModel,
     objectiveModel: objectiveModel,
-    readedIssueModel: readedIssueModel
+    readedIssueModel: readedIssueModel,
+    statisticsKBModel: statisticsKBModel
 };
 
 //掛載socketio, 啟動express
@@ -247,6 +251,10 @@ try {
                     p2p: socket,
                     p2n: io
                 }, modelList);
+                let statistics = require('./routes/statistics')({
+                    p2p: socket,
+                    p2n: io
+                }, modelList);
                 app.use('/', index);
                 app.use('/users', users);
                 app.use('/settings', settings);
@@ -256,6 +264,7 @@ try {
                 app.use('/feedback', feedback);
                 app.use('/issue', issue);
                 app.use('/KB', KB);
+                app.use('/statistics', statistics);
             } catch (e) {
                 console.dir(e);
                 let stack = [];

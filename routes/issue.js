@@ -32,8 +32,9 @@ module.exports = (io, models) => {
 
   io.p2p.on('getissueList', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      getissueList(data, disableBroadcast);
+      await getissueList(data, disableBroadcast);
     }
+    return;
   });
 
   io.p2p.on('editIssue', async (data) => {
@@ -43,6 +44,7 @@ module.exports = (io, models) => {
       }).exec();
       io.p2p.emit('editIssue', issue);
     }
+    return;
   });
 
   io.p2p.on('setIssue', async (data) => {
@@ -60,7 +62,7 @@ module.exports = (io, models) => {
         let KBstage = _.find(issue.KB.stages, (stage) => {
             return stage.current;
         });
-        let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+        let globalSetting = await models.settingModel.findOne({}).exec();
         let user =  await models.userModel.findOne({
           _id: currentUser
         }).exec();
@@ -83,7 +85,7 @@ module.exports = (io, models) => {
           issue.tick = moment().unix();
           await issue.save();
           io.p2p.emit('setIssue', true);
-          getissueList(issue.KB._id, enableBroadcast);
+          await getissueList(issue.KB._id, enableBroadcast);
         } else {
           io.p2p.emit('accessViolation', {
             where: '知識點審查',
@@ -94,6 +96,7 @@ module.exports = (io, models) => {
         }
       }
     }
+    return;
   });
 
   io.p2p.on('setissueStar', async (data) => {
@@ -116,20 +119,14 @@ module.exports = (io, models) => {
         _id: currentUser
       }).exec();
       let autherizedTags = _.flatten([KBstage.pmTags, KBstage.reviewerTags]);
-      let tagCheck = false;
-      for(let i=0; i< user.tags.length; i++) {
-        let tag = user.tags[i];
-        if(!tagCheck) {
-          tagCheck = _.find(autherizedTags, (aTag) => {
-            return aTag.equals(tag);
-          }) !== undefined ? true : false;
-        }
-      }
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(sTag);
+      })).length > 0;
       if(tagCheck) {
         issue.star = !issue.star;
         await issue.save();
         io.p2p.emit('setissueStar', true);
-        getissueList(issue.KB._id, enableBroadcast);
+        await getissueList(issue.KB._id, enableBroadcast);
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點審查',
@@ -139,6 +136,7 @@ module.exports = (io, models) => {
         });
       }
     }
+    return;
   });
 
   io.p2p.on('setissueStatus', async (data) => {
@@ -157,25 +155,19 @@ module.exports = (io, models) => {
       let KBstage = _.find(issue.KB.stages, (stage) => {
           return stage.current;
       });
-      let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+      let globalSetting = await models.settingModel.findOne({}).exec();
       let user =  await models.userModel.findOne({
         _id: currentUser
       }).exec();
       let autherizedTags = _.flatten([KBstage.pmTags, KBstage.reviewerTags, globalSetting.settingTags]);
-      let tagCheck = false;
-      for(let i=0; i< user.tags.length; i++) {
-        let tag = user.tags[i];
-        if(!tagCheck) {
-          tagCheck = _.find(autherizedTags, (aTag) => {
-            return aTag.equals(tag);
-          }) !== undefined ? true : false;
-        }
-      }
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(sTag);
+      })).length > 0;
       if(tagCheck || (new ObjectId(issue.user._id)).equals(currentUser)) {
         issue.status = !issue.status;
         await issue.save();
         io.p2p.emit('setStatus', true);
-        getissueList(issue.KB._id, enableBroadcast);
+        await getissueList(issue.KB._id, enableBroadcast);
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點審查',
@@ -185,6 +177,7 @@ module.exports = (io, models) => {
         });
       }
     }
+    return;
   });
 
   io.p2p.on('getissueAttachment', async (data) => {
@@ -196,6 +189,7 @@ module.exports = (io, models) => {
       .exec();
       io.p2p.emit('getissueAttachment', collection.attachments);
     }
+    return;
   });
 
   io.p2p.on('removeIssue', async (data) => {
@@ -212,20 +206,14 @@ module.exports = (io, models) => {
       let KBstage = _.find(issue.KB.stages, (stage) => {
           return stage.current;
       });
-      let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+      let globalSetting = await models.settingModel.findOne({}).exec();
       let user =  await models.userModel.findOne({
         _id: currentUser
       }).exec();
       let autherizedTags = _.flatten([KBstage.pmTags, globalSetting.settingTags]);
-      let tagCheck = false;
-      for(let i=0; i< user.tags.length; i++) {
-        let tag = user.tags[i];
-        if(!tagCheck) {
-          tagCheck = _.find(autherizedTags, (aTag) => {
-            return aTag.equals(tag);
-          }) !== undefined ? true : false;
-        }
-      }
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(sTag);
+      })).length > 0;
       if(tagCheck || (new ObjectId(issue.user)).equals(currentUser)) {
         let errorlog = 0;
         var collections = await models.issueModel.find({
@@ -269,7 +257,7 @@ module.exports = (io, models) => {
             _id: new ObjectId(data)
           }).exec();
           io.p2p.emit('removeIssue', true);
-          getissueList(issue.KB._id, enableBroadcast);
+          await getissueList(issue.KB._id, enableBroadcast);
         } else {
           io.p2p.emit('removeIssueError', errorlog);
         }
@@ -282,6 +270,7 @@ module.exports = (io, models) => {
         });
       }
     }
+    return;
   });
 
   io.p2p.on('addIssue', async (data) => {
@@ -300,20 +289,14 @@ module.exports = (io, models) => {
           }
         }
         if(!coolDown) {
-          let globalSetting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+          let globalSetting = await models.settingModel.findOne({}).exec();
           let user =  await models.userModel.findOne({
             _id: currentUser
           }).exec();
           let autherizedTags = _.flatten([KBstage.pmTags, KBstage.reviewerTags, KBstage.writerTags, KBstage.vendorTags, globalSetting.settingTags]);
-          let tagCheck = false;
-          for(let i=0; i< user.tags.length; i++) {
-            let tag = user.tags[i];
-            if(!tagCheck) {
-              tagCheck = _.find(autherizedTags, (aTag) => {
-                return aTag.equals(tag);
-              }) !== undefined ? true : false;
-            }
-          }
+          let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+            return uTag.equals(sTag);
+          })).length > 0;
           if(tagCheck) {
             let issue = null;
             if(data.parent === undefined || data.parent === null) {
@@ -394,6 +377,7 @@ module.exports = (io, models) => {
         }
       }
     }
+    return;
   });
 
   return router;

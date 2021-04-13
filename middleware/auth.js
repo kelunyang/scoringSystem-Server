@@ -15,10 +15,9 @@ module.exports = (models) => {
                     _id: ObjectId(req.session.passport.user)
                 }).sort({_id: 1}).exec();
                 if(action.authRange.length !== 0) {
-                    let found = false;
-                    action.authRange.forEach((tag) => {
-                        found = _.find(user.tags, tag);
-                    });
+                    let found = (_.intersectionWith(action.authRange, user.tags, (aTag, uTag) => {
+                        return aTag.equals(uTag);
+                    })).length > 0;
                     if(found) {
                         ma = authMapping['authGranted'];
                         res.locals.status = {

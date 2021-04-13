@@ -39,6 +39,7 @@ module.exports = (io, models) => {
         }
       }
     }
+    return;
   });
 
   io.p2p.on('getLINElog', async (data) => {
@@ -51,6 +52,7 @@ module.exports = (io, models) => {
         }).exec();
       io.p2p.emit('getLINElog', lineDB);
     }
+    return;
   });
 
   io.p2p.on('sendLINEnotify', async (data) => {
@@ -58,7 +60,7 @@ module.exports = (io, models) => {
       let users = null;
       if(data.type === 0) { users = await models.userModel.find({}).exec(); }
       if(data.type === 1) {
-        let setting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
+        let setting = await models.settingModel.findOne({}).exec();
         users = await models.userModel.find({
           $in: {
             tags: setting.settingTags
@@ -118,6 +120,7 @@ module.exports = (io, models) => {
         failed: failed
       });
     }
+    return;
   });
 
   io.p2p.on('sendBroadcast', async (data) => {
@@ -135,6 +138,7 @@ module.exports = (io, models) => {
       });
       io.p2p.emit('sendBroadcast', true);
     }
+    return;
   });
 
   io.p2p.on('getbroadcastLog', async (data) => {
@@ -144,6 +148,7 @@ module.exports = (io, models) => {
       .populate('sender', '-password -lineToken -lineCode').exec();
       io.p2p.emit('getbroadcastLog', collection);
     }
+    return;
   });
 
   io.p2p.on('getMessage', async (data) => {
@@ -159,6 +164,7 @@ module.exports = (io, models) => {
       }).exec();
       io.p2p.emit('getMessage', collection);
     }
+    return;
   });
 
   io.p2p.on('getMessages', async (data) => {
@@ -174,6 +180,7 @@ module.exports = (io, models) => {
       }).exec();
       io.p2p.emit('getMessages', collection);
     }
+    return;
   });
 
   io.p2p.on('getIndexMessages', async (data) => {

@@ -23,6 +23,7 @@ module.exports = (app, passport, models) => {
     res.json({
       loginStatus: 2
     });
+    return;
   });
 
   router.post('/logout', auth(models), log({
@@ -36,6 +37,7 @@ module.exports = (app, passport, models) => {
     res.json({
       loginStatus: 1,
     });
+    return;
   });
 
   router.get('/loginSuccess', auth(models), log({
@@ -47,6 +49,7 @@ module.exports = (app, passport, models) => {
     res.json({
       loginStatus: 1,
     });
+    return;
   });
   
   router.get('/loginFail', auth(models), log({
@@ -57,6 +60,7 @@ module.exports = (app, passport, models) => {
     res.json({
       loginStatus: 0
     });
+    return;
   });
   
   router.get('/lineNotify', auth(models), log({
@@ -112,6 +116,7 @@ module.exports = (app, passport, models) => {
       });
       res.send("LINE綁定程序發生錯誤，請將下面代碼回報：" + tick);
     }
+    return;
   });
 
   return router;

@@ -640,6 +640,60 @@ module.exports = async (models) => {
             where: '知識點模組',
             authRange: [],
             loginRequire: true
-        }
+        },
+        setKBTag: {
+            action: '設定知識點標籤',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        importKBstatistics: {
+            action: '匯入知識點統計',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        periodKBStatistics: {
+            action: '知識點統計',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        periodKBranking: {
+            action: '知識點統計',
+            where: '知識點模組',
+            authRange: [],
+            loginRequire: true
+        },
+        getGithubBackendCommit: {
+            action: '取得最新Github上的後端Commit',
+            where: '設定模組',
+            authRange: [],
+            loginRequire: true
+        },
+        getGithubFrontendCommit: {
+            action: '取得最新Github上的前端Commit',
+            where: '設定模組',
+            authRange: [],
+            loginRequire: true
+        },
+        startV2ray: {
+            action: '啟動v2ray',
+            where: '設定模組',
+            authRange: setting.settingTags,
+            loginRequire: true
+        },
+        stopV2ray: {
+            action: '結束v2ray',
+            where: '設定模組',
+            authRange: setting.settingTags,
+            loginRequire: true
+        },
+        checkV2ray: {
+            action: '檢查v2ray',
+            where: '設定模組',
+            authRange: setting.settingTags,
+            loginRequire: true
+        },
     }
 }

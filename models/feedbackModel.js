@@ -13,13 +13,17 @@ module.exports = function (mongoose) {
                 ref: "userModel"
             }
         ],
+        user: {
+            type: ObjectID,
+            ref: "userModel"
+        },
         attachments: [
             {
                 type: ObjectID,
                 ref: 'fileModel'
             }
         ],
-        status: Number,
+        status: Boolean,
         rating:  [
             {
                 type: ObjectID,
