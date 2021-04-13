@@ -187,7 +187,7 @@ try {
                             }
                             socket.to("/activeUsers").emit('userLeave');
                             socket.leave('/activeUsers');
-                            console.log('socket: ' + socket.id + ' disconnected');
+                            //console.log('socket: ' + socket.id + ' disconnected');
                             clearTimeout(aliveTimer);
                             aliveTimer = null;
                             return; //結束程式
