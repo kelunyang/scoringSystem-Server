@@ -120,7 +120,7 @@ module.exports = (io, models) => {
       }).exec();
       let autherizedTags = _.flatten([KBstage.pmTags, KBstage.reviewerTags]);
       let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
-        return uTag.equals(sTag);
+        return uTag.equals(aTag);
       })).length > 0;
       if(tagCheck) {
         issue.star = !issue.star;
@@ -161,7 +161,7 @@ module.exports = (io, models) => {
       }).exec();
       let autherizedTags = _.flatten([KBstage.pmTags, KBstage.reviewerTags, globalSetting.settingTags]);
       let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
-        return uTag.equals(sTag);
+        return uTag.equals(aTag);
       })).length > 0;
       if(tagCheck || (new ObjectId(issue.user._id)).equals(currentUser)) {
         issue.status = !issue.status;
@@ -212,7 +212,7 @@ module.exports = (io, models) => {
       }).exec();
       let autherizedTags = _.flatten([KBstage.pmTags, globalSetting.settingTags]);
       let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
-        return uTag.equals(sTag);
+        return uTag.equals(aTag);
       })).length > 0;
       if(tagCheck || (new ObjectId(issue.user)).equals(currentUser)) {
         let errorlog = 0;
@@ -295,7 +295,7 @@ module.exports = (io, models) => {
           }).exec();
           let autherizedTags = _.flatten([KBstage.pmTags, KBstage.reviewerTags, KBstage.writerTags, KBstage.vendorTags, globalSetting.settingTags]);
           let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
-            return uTag.equals(sTag);
+            return uTag.equals(aTag);
           })).length > 0;
           if(tagCheck) {
             let issue = null;

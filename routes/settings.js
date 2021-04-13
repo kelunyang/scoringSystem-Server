@@ -47,12 +47,21 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('checkV2ray', async (data) => {
-    var ps = spawn('ps',   ['au']);
-    var grep = spawn('grep', ['v2ray']);
-    ps.stdout.pipe(grep.stdin);
-    grep.stdout.on('data',function(data) {
+    var pgrep = spawn('ps',   ['-C', 'v2ray']);
+    pgrep.stderr.on('data',function(data) {
+      console.dir(data);
+    });
+    pgrep.stdout.on('data',function(data) {
       let result = data.toString('utf8');
-      io.p2p.emit('checkV2ray', result.indexOf('/usr/bin/v2ray'));
+      io.p2p.emit('checkV2ray', result.indexOf('v2ray'));
+    });
+    var dig = spawn('dig',   ['+short', 'myip.opendns.com', '@resolver1.opendns.com']);
+    dig.stderr.on('data',function(data) {
+      console.dir(data);
+    });
+    dig.stdout.on('data',function(data) {
+      let result = data.toString('utf8');
+      io.p2p.emit('getserverADDR', result);
     });
     return;
   });

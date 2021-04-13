@@ -3,7 +3,7 @@ const { ObjectId } = require('mongodb');
 const _ = require('lodash');
 
 module.exports = async (socket, models, [event], next) => {
-    console.log("socket event:" + event);
+    //console.log("socket event:" + event);
     const authMapping = await require('./mapping')(models);
     let action = authMapping[event];
     let ma = undefined;
