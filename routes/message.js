@@ -258,6 +258,7 @@ module.exports = (io, models) => {
 
   io.p2p.on('removeMessage', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
+      let globalSetting = await models.settingModel.findOne({}).exec();
       var message = await models.messageModel.findOne({
         _id: new ObjectId(data)
       }).exec();
@@ -265,8 +266,8 @@ module.exports = (io, models) => {
       for(let i=0;i<message.attachments.length;i++) {
         try {
           let file = message.attachments[i];
-          let exist = await fs.access('/var/www/frontend/storages/' + file);
-          if(exist) { await fs.remove('/var/www/frontend/storages/' + file); }
+          let exist = await fs.access(globalSetting.storageLocation + '/' + file);
+          if(exist) { await fs.remove(globalSetting.storageLocation + '/' + file); }
           fileObj = await models.fileModel.deleteOne({
             _id: new ObjectId(file)
           }).exec();

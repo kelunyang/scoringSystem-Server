@@ -449,16 +449,16 @@ module.exports = (io, models) => {
           }).exec();
           for(let k=0; k<KB.descAtt.length; k++) {
             let att = KB.descAtt[k];
-            let exist = await fs.access('/var/www/frontend/storages/' + att._id.toString());
-            if(exist) { await fs.remove('/var/www/frontend/storages/' + att._id.toString()); }
+            let exist = await fs.access(globalSetting.storageLocation + '/' + att._id.toString());
+            if(exist) { await fs.remove(globalSetting.storageLocation + '/' + att._id.toString()); }
             await models.fileModel.deleteOne({ 
               _id: att._id
             }).exec();
           }
           for(let k=0; k<KB.versions.length; k++) {
             let att = KB.versions[k];
-            let exist = await fs.access('/var/www/frontend/storages/' + att._id.toString());
-            if(exist) { await fs.remove('/var/www/frontend/storages/' + att._id.toString()); }
+            let exist = await fs.access(globalSetting.storageLocation + '/' + att._id.toString());
+            if(exist) { await fs.remove(globalSetting.storageLocation + '/' + att._id.toString()); }
             await models.fileModel.deleteOne({ 
               _id: att._id
             }).exec();
@@ -467,8 +467,8 @@ module.exports = (io, models) => {
             let issue = KB.issues[k];
             for(let k=0; k<issue.attachments.length; k++) {
               let att = issue.attachments[k];
-              let exist = await fs.access('/var/www/frontend/storages/' + att._id.toString());
-              if(exist) { await fs.remove('/var/www/frontend/storages/' + att._id.toString()); }
+              let exist = await fs.access(globalSetting.storageLocation + '/' + att._id.toString());
+              if(exist) { await fs.remove(globalSetting.storageLocation + '/' + att._id.toString()); }
               await models.fileModel.deleteOne({ 
                 _id: att._id
               }).exec();
@@ -642,16 +642,16 @@ module.exports = (io, models) => {
           }).exec();
           for(let k=0; k<KB.descAtt.length; k++) {
             let att = KB.descAtt[k];
-            let exist = await fs.access('/var/www/frontend/storages/' + att._id.toString());
-            if(exist) { await fs.remove('/var/www/frontend/storages/' + att._id.toString()); }
+            let exist = await fs.access(globalSetting.storageLocation + '/' + att._id.toString());
+            if(exist) { await fs.remove(globalSetting.storageLocation + '/' + att._id.toString()); }
             await models.fileModel.deleteOne({ 
               _id: att._id
             }).exec();
           }
           for(let k=0; k<KB.versions.length; k++) {
             let att = KB.versions[k];
-            let exist = await fs.access('/var/www/frontend/storages/' + att._id.toString());
-            if(exist) { await fs.remove('/var/www/frontend/storages/' + att._id.toString()); }
+            let exist = await fs.access(globalSetting.storageLocation + '/' + att._id.toString());
+            if(exist) { await fs.remove(globalSetting.storageLocation + '/' + att._id.toString()); }
             await models.fileModel.deleteOne({ 
               _id: att._id
             }).exec();
@@ -660,8 +660,8 @@ module.exports = (io, models) => {
             let issue = KB.issues[k];
             for(let k=0; k<issue.attachments.length; k++) {
               let att = issue.attachments[k];
-              let exist = await fs.access('/var/www/frontend/storages/' + att._id.toString());
-              if(exist) { await fs.remove('/var/www/frontend/storages/' + att._id.toString()); }
+              let exist = await fs.access(globalSetting.storageLocation + '/' + att._id.toString());
+              if(exist) { await fs.remove(globalSetting.storageLocation + '/' + att._id.toString()); }
               await models.fileModel.deleteOne({ 
                 _id: att._id
               }).exec();

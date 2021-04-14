@@ -23,8 +23,9 @@ module.exports = (io, models) => {
   io.p2p.on('deleteMsgFile', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       try {
-        let exist = await fs.access('/var/www/storages/' + data.fileID);
-        if(exist) { await fs.remove('/var/www/storages/' + data.fileID); }
+        let globalSetting = await models.settingModel.findOne({}).exec();
+        let exist = await fs.access(globalSetting.storageLocation + '/' + data.fileID);
+        if(exist) { await fs.remove(globalSetting.storageLocation + '/' + data.fileID); }
         await models.fileModel.deleteOne({
           _id: data.fileID
         }).populate('attachments').exec();
@@ -46,6 +47,7 @@ module.exports = (io, models) => {
 
   io.p2p.on('sendMsgFile', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
+      let globalSetting = await models.settingModel.findOne({}).exec();
       if (!files[data.uuid]) { 
         files[data.uuid] = Object.assign({}, struct, data); 
         files[data.uuid].data = []; 
@@ -64,7 +66,7 @@ module.exports = (io, models) => {
           writeConfirm: false
         });
         try {
-          await fs.outputFile('/var/www/frontend/storages/' + file._id, fileBuffer, "binary");
+          await fs.outputFile(globalSetting.storageLocation + '/' + file._id, fileBuffer, "binary");
           delete files[data.uuid]; 
           file.status = 1;
           file.writeConfirm = true;
@@ -91,8 +93,9 @@ module.exports = (io, models) => {
   io.p2p.on('deletefeedbackFile', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       try {
-        let exist = await fs.access('/var/www/storages/' + data.fileID);
-        if(exist) { await fs.remove('/var/www/storages/' + data.fileID); }
+        let globalSetting = await models.settingModel.findOne({}).exec();
+        let exist = await fs.access(globalSetting.storageLocation + '/' + data.fileID);
+        if(exist) { await fs.remove(globalSetting.storageLocation + '/' + data.fileID); }
         await models.fileModel.deleteOne({
           _id: data.fileID
         }).exec();
@@ -114,6 +117,7 @@ module.exports = (io, models) => {
 
   io.p2p.on('sendfeedbackFile', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
+      let globalSetting = await models.settingModel.findOne({}).exec();
       if (!files[data.uuid]) { 
         files[data.uuid] = Object.assign({}, struct, data); 
         files[data.uuid].data = []; 
@@ -132,7 +136,7 @@ module.exports = (io, models) => {
           writeConfirm: false
         });
         try {
-          await fs.outputFile('/var/www/storages/' + file._id, fileBuffer, "binary");
+          await fs.outputFile(globalSetting.storageLocation + '/' + file._id, fileBuffer, "binary");
           delete files[data.uuid]; 
           file.status = 1;
           file.writeConfirm = true;
@@ -158,9 +162,10 @@ module.exports = (io, models) => {
 
   io.p2p.on('deleteissueFile', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
+      let globalSetting = await models.settingModel.findOne({}).exec();
       try {
-        let exist = await fs.access('/var/www/storages/' + data.fileID);
-        if(exist) { await fs.remove('/var/www/storages/' + data.fileID); }
+        let exist = await fs.access(globalSetting.storageLocation + '/' + data.fileID);
+        if(exist) { await fs.remove(globalSetting.storageLocation + '/' + data.fileID); }
         await models.fileModel.deleteOne({
           _id: data.fileID
         }).exec();
@@ -181,6 +186,7 @@ module.exports = (io, models) => {
 
   io.p2p.on('sendissueFile', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
+      let globalSetting = await models.settingModel.findOne({}).exec();
       if (!files[data.uuid]) { 
         files[data.uuid] = Object.assign({}, struct, data); 
         files[data.uuid].data = []; 
@@ -199,7 +205,7 @@ module.exports = (io, models) => {
           writeConfirm: false
         });
         try {
-          await fs.outputFile('/var/www/storages/' + file._id, fileBuffer, "binary");
+          await fs.outputFile(globalSetting.storageLocation + '/' + file._id, fileBuffer, "binary");
           delete files[data.uuid]; 
           file.status = 1;
           file.writeConfirm = true;
@@ -225,9 +231,10 @@ module.exports = (io, models) => {
 
   io.p2p.on('deleteKBVersion', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
+      let globalSetting = await models.settingModel.findOne({}).exec();
       try {
-        let exist = await fs.access('/var/www/storages/' + data.fileID);
-        if(exist) { await fs.remove('/var/www/storages/' + data.fileID); }
+        let exist = await fs.access(globalSetting.storageLocation + '/' + data.fileID);
+        if(exist) { await fs.remove(globalSetting.storageLocation + '/' + data.fileID); }
         await models.fileModel.deleteOne({
           _id: data.fileID
         }).exec();
@@ -249,6 +256,7 @@ module.exports = (io, models) => {
 
   io.p2p.on('sendKBVersion', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
+      let globalSetting = await models.settingModel.findOne({}).exec();
       if (!files[data.uuid]) { 
         files[data.uuid] = Object.assign({}, struct, data); 
         files[data.uuid].data = []; 
@@ -270,7 +278,7 @@ module.exports = (io, models) => {
           writeConfirm: false
         });
         try {
-          await fs.outputFile('/var/www/storages/' + file._id, fileBuffer, "binary");
+          await fs.outputFile(globalSetting.storageLocation + '/' + file._id, fileBuffer, "binary");
           delete files[data.uuid]; 
           file.status = 1;
           file.writeConfirm = true;
@@ -296,9 +304,10 @@ module.exports = (io, models) => {
 
   io.p2p.on('deleteKBFile', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
+      let globalSetting = await models.settingModel.findOne({}).exec();
       try {
-        let exist = await fs.access('/var/www/storages/' + data.fileID);
-        if(exist) { await fs.remove('/var/www/storages/' + data.fileID); }
+        let exist = await fs.access(globalSetting.storageLocation + '/' + data.fileID);
+        if(exist) { await fs.remove(globalSetting.storageLocation + '/' + data.fileID); }
         await models.fileModel.deleteOne({
           _id: data.fileID
         }).exec();
@@ -320,6 +329,7 @@ module.exports = (io, models) => {
 
   io.p2p.on('sendKBFile', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
+      let globalSetting = await models.settingModel.findOne({}).exec();
       if (!files[data.uuid]) { 
         files[data.uuid] = Object.assign({}, struct, data); 
         files[data.uuid].data = []; 
@@ -340,7 +350,7 @@ module.exports = (io, models) => {
           writeConfirm: false
         });
         try {
-          await fs.outputFile('/var/www/storages/' + file._id, fileBuffer, "binary");
+          await fs.outputFile(globalSetting.storageLocation + '/' + file._id, fileBuffer, "binary");
           delete files[data.uuid]; 
           file.status = 1;
           file.writeConfirm = true;
@@ -366,6 +376,7 @@ module.exports = (io, models) => {
 
   io.p2p.on('importKBZip', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
+      let globalSetting = await models.settingModel.findOne({}).exec();
       if (!files[data.uuid]) { 
         files[data.uuid] = Object.assign({}, struct, data); 
         files[data.uuid].data = [];
@@ -461,7 +472,7 @@ module.exports = (io, models) => {
                             zip
                             .file(file.name)
                             .nodeStream()
-                            .pipe(fs.createWriteStream('/var/www/storages/' + mongoFile._id))
+                            .pipe(fs.createWriteStream(globalSetting.storageLocation + '/' + mongoFile._id))
                             .on('finish', async function () {
                               await models.fileModel.updateOne({
                                 _id: mongoFile._id

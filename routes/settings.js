@@ -142,6 +142,7 @@ module.exports = (io, models) => {
       gSetting.githubKey = data.githubKey;
       gSetting.frontendRepo = data.frontendRepo;
       gSetting.backendRepo = data.backendRepo;
+      gSetting.storageLocation = data.storageLocation;
       gSetting.tick = moment().unix();
       await gSetting.save();
       let rSetting = await models.robotModel.findOne({}).exec();
@@ -157,6 +158,11 @@ module.exports = (io, models) => {
       rSetting.mailPort = data.mailPort;
       rSetting.patrolHour = data.patrolHour;
       rSetting.mailSSL = data.mailSSL;
+      rSetting.backupLocation = data.backupLocation;
+      rSetting.dbbackupLocation = data.dbbackupLocation;
+      rSetting.backupDuration = data.backupPeroid;
+      rSetting.dbbackupPeroid = data.dbbackupPeroid;
+      rSetting.dbbackupCopies = data.dbbackupCopies;
       await rSetting.save();
       io.p2p.emit('setSetting', true);
       let robotSetting = await models.robotModel.findOne({}).exec();

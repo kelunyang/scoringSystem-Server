@@ -22,6 +22,13 @@ module.exports = function (mongoose) {
         reportDuration: Number,
         patrolHour: Number,
         LastPatrol: Number,
+        LastDBbackup: Number,
+        LastBackup: Number,
+        backupLocation: String,
+        dbbackupLocation: String,
+        backupDuration: Number,
+        dbbackupDuration: Number,
+        dbbackupCopies: Number,
         tick: Number
     }, { collection: 'robotSettings' });
     return mongoose.model('robotModel', robotSchema);

@@ -37,6 +37,7 @@ module.exports = function (mongoose) {
     siteLocation: String,
     versionBackend: String,
     versionFrontend: String,
+    storageLocation: String,
     userCheckTime: Number,
     tick: Number,
     connectionTimeout: Number

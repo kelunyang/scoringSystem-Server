@@ -198,13 +198,14 @@ module.exports = (io, models) => {
       var collections = await models.feedbackModel.find({
         parent: new ObjectId(data)
       }).exec();
+      let globalSetting = await models.settingModel.findOne({}).exec();
       for(let i = 0; i < collections.length; i++) {
         let feedback = collections[i];
         for(let i=0;i<feedback.attachments.length;i++) {
           try {
             let file = feedback.attachments[i];
-            let exist = await fs.access('/var/www/frontend/storages/' + file);
-            if(exist) { await fs.remove('/var/www/frontend/storages/' + file); }
+            let exist = await fs.access(globalSetting.storageLocation + '/' + file);
+            if(exist) { await fs.remove(globalSetting.storageLocation + '/' + file); }
             fileObj = await models.fileModel.deleteOne({
               _id: new ObjectId(file)
             }).exec();
@@ -219,8 +220,8 @@ module.exports = (io, models) => {
       for(let i=0;i<feedback.attachments.length;i++) {
         try {
           let file = feedback.attachments[i];
-          let exist = await fs.access('/var/www/frontend/storages/' + file);
-          if(exist) { await fs.remove('/var/www/frontend/storages/' + file); }
+          let exist = await fs.access(globalSetting.storageLocation + '/' + file);
+          if(exist) { await fs.remove(globalSetting.storageLocation + '/' + file); }
           fileObj = await models.fileModel.deleteOne({
             _id: new ObjectId(file)
           }).exec();

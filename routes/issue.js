@@ -224,8 +224,8 @@ module.exports = (io, models) => {
           for(let i=0;i<issue.attachments.length;i++) {
             try {
               let file = issue.attachments[i];
-              let exist = await fs.access('/var/www/frontend/storages/' + file);
-              if(exist) { await fs.remove('/var/www/frontend/storages/' + file); }
+              let exist = await fs.access(globalSetting.storageLocation + '/' + file);
+              if(exist) { await fs.remove(globalSetting.storageLocation + '/' + file); }
               fileObj = await models.fileModel.deleteOne({
                 _id: new ObjectId(file)
               }).exec();
@@ -240,8 +240,8 @@ module.exports = (io, models) => {
         for(let i=0;i<issue.attachments.length;i++) {
           try {
             let file = issue.attachments[i];
-            let exist = await fs.access('/var/www/frontend/storages/' + file);
-            if(exist) { await fs.remove('/var/www/frontend/storages/' + file); }
+            let exist = await fs.access(globalSetting.storageLocation + '/' + file);
+            if(exist) { await fs.remove(globalSetting.storageLocation + '/' + file); }
             fileObj = await models.fileModel.deleteOne({
               _id: new ObjectId(file)
             }).exec();
