@@ -22,18 +22,27 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('startV2ray', async (data) => {
-    v2ray = spawn('/usr/bin/v2ray', ['-config','/etc/v2ray/config.json'], {detached:true});
-    v2ray.stderr.on('data',function(data) {
-      io.p2p.emit('v2rayReport', '發生錯誤：' + data);
+    var pgrep = spawn('ps',   ['-C', 'v2ray']);
+    pgrep.stderr.on('data',function(data) {
+      console.dir(data);
     });
-
-    v2ray.stdout.on('data',function(data) {
+    pgrep.stdout.on('data',function(data) {
       let result = data.toString('utf8');
-      io.p2p.emit('v2rayReport', result.replace('\n', ''));
-    });
+      if(result.indexOf('v2ray') === -1) {
+        v2ray = spawn('/usr/bin/v2ray', ['-config','/etc/v2ray/config.json'], {detached:true});
+        v2ray.stderr.on('data',function(data) {
+          io.p2p.emit('v2rayReport', '發生錯誤：' + data);
+        });
 
-    v2ray.on('exit', (code) => {
-      io.p2p.emit('v2rayReport', 'v2ray已結束！');
+        v2ray.stdout.on('data',function(data) {
+          let result = data.toString('utf8');
+          io.p2p.emit('v2rayReport', result.replace('\n', ''));
+        });
+
+        v2ray.on('exit', (code) => {
+          io.p2p.emit('v2rayReport', 'v2ray已結束！');
+        });
+      }
     });
     return;
   });
@@ -42,6 +51,11 @@ module.exports = (io, models) => {
     if(v2ray !== null) {
       v2ray.stdin.pause();
       v2ray.kill();
+    } else {
+      var pgrep = spawn('killall',   ['v2ray']);
+      pgrep.stderr.on('data',function(data) {
+        console.dir(data);
+      });
     }
     return;
   });
