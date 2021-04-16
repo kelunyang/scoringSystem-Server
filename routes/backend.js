@@ -69,11 +69,11 @@ module.exports = (app, passport, models) => {
     action: 'lineNotify'
   }), async (req, res) => {
     let robotSetting = await models.robotModel.findOne({}).exec();
-    let globalSetting = await models.globalModel.findOne({}).exec();
+    let settingModel = await models.settingModel.findOne({}).exec();
     try {
       let result = await axios.post('https://notify-bot.line.me/oauth/token', qs.stringify({
         grant_type: 'authorization_code',
-        redirect_uri: globalSetting.siteLocation + '/backend/lineNotify',
+        redirect_uri: settingModel.siteLocation + '/backend/lineNotify',
         client_id: robotSetting.LINENotifyKey,
         client_secret: robotSetting.LINESecretKey,
         code: req.query.code
