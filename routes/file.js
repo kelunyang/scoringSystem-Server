@@ -412,9 +412,9 @@ module.exports = (io, models) => {
                   let csvContent = Papa.parse(content, {
                     header: true,
                     skipEmptyLines: true,
-                    complete: async function() {
+                    complete: async function(result) {
                       io.p2p.emit('KBZipReport', 'CSV檔讀入完成，分析結構中');
-                      let chapters = _.uniq(_.map(csvContent.data, '大分類名稱'));
+                      let chapters = _.uniq(_.map(result.data, '大分類名稱'));
                       io.p2p.emit('KBZipReport', 'CSV檔中有' + chapters.length + '個大分類');
                       let tagChapter = await models.chapterModel.find({
                         tag: { $in: tag }
@@ -430,7 +430,7 @@ module.exports = (io, models) => {
                           tag: [tag],
                           KBs: []
                         })
-                        let KBs = _.filter(csvContent.data, {
+                        let KBs = _.filter(result.data, {
                           '大分類名稱': chapter
                         });
                         let chapterKB = [];
