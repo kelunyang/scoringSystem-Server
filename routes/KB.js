@@ -756,7 +756,6 @@ module.exports = (io, models) => {
 
   io.p2p.on('setKBTag', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      console.log
       let KBID = new ObjectId(data._id);
       let userID = new ObjectId(io.p2p.request.session.passport.user);
       let globalSetting = await models.settingModel.findOne({}).exec();

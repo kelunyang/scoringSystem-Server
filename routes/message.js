@@ -73,7 +73,6 @@ module.exports = (io, models) => {
       for(let i=0; i< users.length; i++) {
         let user = users[i];
         if(!('lineToken' in user) || user.lineToken !== undefined) {
-          console.log(user.name);
           try {
             let sendmsg = await axios.post('https://notify-api.line.me/api/notify', qs.stringify({
               message: data.body
