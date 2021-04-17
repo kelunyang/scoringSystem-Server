@@ -436,16 +436,17 @@ module.exports = (io, models) => {
                         let chapterKB = [];
                         for(let b=0; b<KBs.length; b++) {
                           let KB = KBs[b];
-                          io.p2p.emit('KBZipReport', '匯入：' + chapter + '/' + KB['知識點名稱'] + '中...');
+                          let KBname = KB['知識點名稱'] === undefined ? '無' : KB['知識點名稱'];
+                          io.p2p.emit('KBZipReport', '匯入：' + chapter + '/' + KBname + '中...');
                           mongoKB= await models.KBModel.create({
                             createDate: now,
                             modDate: now,
-                            title: KB['知識點名稱'],
+                            title: KBname,
                             sort: b,
                             user: new ObjectId(io.p2p.request.session.passport.user),
-                            desc: KB['細部內容'],
+                            desc: KB['細部內容'] === undefined ? '無' : KB['細部內容'],
                             tag: [tag],
-                            textbook: KB['課綱學習內容'],
+                            textbook: KB['課綱學習內容'] === undefined ? '無' : KB['課綱學習內容'],
                             chapter: mongoChapter._id,
                             stages: [],
                             eventLog: [],
@@ -458,7 +459,7 @@ module.exports = (io, models) => {
                             return  (new RegExp('^\\[' + KB['序號']+'\\]')).test(item.name);
                           });
                           let KBdescAtt = [];
-                          io.p2p.emit('KBZipReport', '匯入' + KB['知識點名稱'] + '的附件... 共' + descAtt.length + '件');
+                          io.p2p.emit('KBZipReport', '匯入' + KBname + '的附件... 共' + descAtt.length + '件');
                           for(let i=0; i<descAtt.length; i++) {
                             let file = descAtt[i];
                             mongoFile = await models.fileModel.create({
