@@ -756,48 +756,52 @@ module.exports = (io, models) => {
 
   io.p2p.on('setKBTag', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let KBID = new ObjectId(data._id);
-      let userID = new ObjectId(io.p2p.request.session.passport.user);
-      let globalSetting = await models.settingModel.findOne({}).exec();
-      let currentUser = userID;
-      let user =  await models.userModel.findOne({
-        _id: currentUser
-      }).exec();
-      let KB = await models.KBModel.findOne({
-        _id: KBID
-      }).exec();
-      let KBstage = await models.stageModel.findOne({
-        current: true,
-        KB: KBID
-      }).exec();
-      let autherizedTags = _.flatten([globalSetting.settingTags, globalSetting.projectTags, KBstage.pmTags]);
-      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
-        return uTag.equals(aTag);
-      })).length > 0;
-      if(tagCheck) {
-        let now = moment().unix();
-        await models.KBModel.updateOne({
+      if(data.tag.length > 0) {
+        let KBID = new ObjectId(data._id);
+        let userID = new ObjectId(io.p2p.request.session.passport.user);
+        let globalSetting = await models.settingModel.findOne({}).exec();
+        let currentUser = userID;
+        let user =  await models.userModel.findOne({
+          _id: currentUser
+        }).exec();
+        let KB = await models.KBModel.findOne({
           _id: KBID
-        },{
-          tag: data.tag
-        });
-        let event = await models.eventlogModel.create({
-          tick: now,
-          type: '知識點操作',
-          desc: '設定知識點標籤',
-          KB: KBID,
-          user: userID
-        });
-        KB.eventLog.push(event._id);
-        await KB.save();
-        io.p2p.emit('setKBTag', true);
+        }).exec();
+        let KBstage = await models.stageModel.findOne({
+          current: true,
+          KB: KBID
+        }).exec();
+        let autherizedTags = _.flatten([globalSetting.settingTags, globalSetting.projectTags, KBstage.pmTags]);
+        let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+          return uTag.equals(aTag);
+        })).length > 0;
+        if(tagCheck) {
+          let now = moment().unix();
+          await models.KBModel.updateOne({
+            _id: KBID
+          },{
+            tag: data.tag
+          });
+          let event = await models.eventlogModel.create({
+            tick: now,
+            type: '知識點操作',
+            desc: '設定知識點標籤',
+            KB: KBID,
+            user: userID
+          });
+          KB.eventLog.push(event._id);
+          await KB.save();
+          io.p2p.emit('setKBTag', true);
+        } else {
+          io.p2p.emit('accessViolation', {
+            where: '知識點操作',
+            tick: moment().unix(),
+            action: '設定知識點標籤',
+            loginRequire: true
+          });
+        }
       } else {
-        io.p2p.emit('accessViolation', {
-          where: '知識點操作',
-          tick: moment().unix(),
-          action: '設定知識點標籤',
-          loginRequire: true
-        });
+        io.p2p.emit('setKBTag', false);
       }
     }
     return;
