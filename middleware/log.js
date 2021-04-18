@@ -1,7 +1,5 @@
 const moment = require('moment');
 
-console.log('aaaq');
-
 module.exports = (data) => {
   return async (req, res, next) => {
     let authMapping = await require('./mapping')(data.models);
