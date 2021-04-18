@@ -497,6 +497,7 @@ module.exports = (io, models) => {
                         io.p2p.emit('KBZipReport', chapter + '匯入完成！');
                       }
                       io.p2p.emit('KBZipReport', '匯入完成！');
+                      io.p2p.emit('refreshKB', true);
                     }
                   });
                 } catch (e) {
@@ -510,7 +511,6 @@ module.exports = (io, models) => {
             }
           });
           delete files[data.uuid];
-          io.p2p.emit('refreshKB', true);
         } catch (err) {
           console.dir(err);
           io.p2p.emit('KBZipUploadError', JSON.stringify(err)); 
