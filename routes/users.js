@@ -300,8 +300,8 @@ module.exports = (io, models) => {
       let password = generator.generate({
         length: 10
       });
-      let user = await models.userModel.find({
-        _id: ObjectId(data)
+      let user = await models.userModel.findOne({
+        _id: new ObjectId(data)
       }).sort({_id: 1}).exec();
       user.password = bcrypt.hashSync(password, bcrypt.genSaltSync(10));
       user.firstRun = true;
@@ -338,7 +338,7 @@ module.exports = (io, models) => {
       let zeroTag = [];
       let setting = await models.settingModel.findOne({}).exec();
       let user = await models.userModel.findOne({
-        _id: ObjectId(data._id)
+        _id: new ObjectId(data._id)
       }).exec();
       user.unit = data.unit;
       let newTags = await availableTags(_.map(data.tags, (item) => {
@@ -382,7 +382,7 @@ module.exports = (io, models) => {
     if(io.p2p.request.session.hasOwnProperty('passport')) {
       if(io.p2p.request.session.passport.hasOwnProperty('user')) {
         let user = await models.userModel.findOne({
-          _id: ObjectId(io.p2p.request.session.passport.user)
+          _id: new ObjectId(io.p2p.request.session.passport.user)
         })
         .populate('tags').exec();
         if(user === null) {
@@ -437,7 +437,7 @@ module.exports = (io, models) => {
   io.p2p.on('setCurrentUser', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       let user = await models.userModel.findOne({
-        _id: ObjectId(io.p2p.request.session.passport.user)
+        _id: new ObjectId(io.p2p.request.session.passport.user)
       }).exec();
       user.name = data.name;
       user.types = data.types;
@@ -467,7 +467,7 @@ module.exports = (io, models) => {
       for(let i=0; i<data.users.length; i++) {
         let userID = data.users[i]._id;
         let user = await models.userModel.findOne({
-          _id: ObjectId(userID)
+          _id: new ObjectId(userID)
         }).exec();
         let usernewTags = newTags;
         let tagdeleteTOBE = _.differenceWith(user.tags, usernewTags, (uTag, nTag) => {
