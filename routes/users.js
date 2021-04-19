@@ -297,12 +297,12 @@ module.exports = (io, models) => {
     if(io.p2p.request.session.status.type === 3) {
       let setting = await models.settingModel.findOne({}).exec();
       let robotSetting = await models.robotModel.findOne({}).exec();
+      let user = await models.userModel.findOne({
+        _id: new ObjectId(data)
+      }).exec();
       let password = generator.generate({
         length: 10
       });
-      let user = await models.userModel.findOne({
-        _id: new ObjectId(data)
-      }).sort({_id: 1}).exec();
       user.password = bcrypt.hashSync(password, bcrypt.genSaltSync(10));
       user.firstRun = true;
       await user.save();

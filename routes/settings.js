@@ -148,6 +148,7 @@ module.exports = (io, models) => {
       gSetting.projectTags = data.selectedflowTags.length > 0 ? data.selectedflowTags : gSetting.projectTags;
       gSetting.robotTag = data.selectedrobotTag === '' ? gSetting.robotTag : data.selectedrobotTag;
       gSetting.statisticsTags = data.selectedstatisticsTags.length > 0 ? data.selectedstatisticsTags : gSetting.statisticsTags;
+      gSetting.serviceTags = data.serviceTags.length > 0 ? data.serviceTags : gSetting.serviceTags;
       gSetting.siteLocation = data.siteLocation;
       gSetting.versionBackend = data.versionBackend;
       gSetting.versionFrontend = data.versionFrontend;

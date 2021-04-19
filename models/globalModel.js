@@ -27,6 +27,12 @@ module.exports = function (mongoose) {
         ref: "tagModel"
       }
     ],
+    serviceTags: [
+      {
+        type: ObjectID,
+        ref: "tagModel"
+      }
+    ],
     robotTag: {
       type: ObjectID,
       ref: "tagModel"

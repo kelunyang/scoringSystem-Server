@@ -92,25 +92,12 @@ module.exports = (io, models) => {
       let user =  await models.userModel.findOne({
         _id: new ObjectId(io.p2p.request.session.passport.user)
       }).exec();
-      let autherizedTags = _.intersectionWith(user.tags, setting.settingTags, (uTag, sTag) => {
-        return uTag.equals(sTag);
+      let autherizedTags = _.uniqWith(_.flatten([setting.serviceTags, setting.settingTags]), (aTag, bTag) => {
+        return aTag.equals(bTag);
       });
-      let adminUsers = [];
-      if(autherizedTags.length > 0) {
-        for(let t = 0; t < data.length; t++) {
-          let queryTag = data[t];
-          for(let i = 0; i < setting[queryTag].length; i++) {
-            let tag = (setting[queryTag])[i];
-            let users = await models.userModel.find({
-              tags: tag
-            }).exec();
-            for(let k = 0; k < users.length; k++) {
-              let user = users[k];
-              adminUsers.push(user);
-            }
-          }
-        }
-      }
+      let adminUsers = await models.userModel.find({
+        tags: { $in: autherizedTags }
+      }).exec();
       io.p2p.emit('getsiteAdminUsers', adminUsers);
     }
     return;
