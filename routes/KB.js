@@ -914,7 +914,7 @@ module.exports = (io, models) => {
             sort: (stage.sort + 1)
           }).exec();
           stage.passTick = now;
-          if(nextStage !== undefined) {
+          if(nextStage !== null) {
             stage.current = false;
             nextStage.current = true;
             nextStage.startTick = now;
