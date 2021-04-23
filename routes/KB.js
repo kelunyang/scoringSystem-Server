@@ -947,6 +947,58 @@ module.exports = (io, models) => {
     return;
   });
 
+  io.p2p.on('revokeObjective', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      let globalSetting = await models.settingModel.findOne({}).exec();
+      let currentUser = new ObjectId(io.p2p.request.session.passport.user);
+      let user =  await models.userModel.findOne({
+        _id: currentUser
+      }).exec();
+      let KBstage = await models.stageModel.findOne({
+        current: true,
+        KB: new ObjectId(data.KB)
+      }).exec();
+      let autherizedTags = _.flatten([globalSetting.settingTags, globalSetting.projectTags, KBstage.pmTags]);
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(aTag);
+      })).length > 0;
+      if(tagCheck) {
+        let now = moment().unix();
+        let KBID = new ObjectId(data.KB);
+        let stageID = new ObjectId(data.stage);
+        let object = await models.objectiveModel.updateOne({
+          _id: new ObjectId(data.oid)
+        }, {
+          $unset: {
+            signUser: 1,
+            signTick: 1
+          }
+        });
+        let KB = await models.KBModel.findOne({
+          _id: KBID
+        }).exec();
+        let event = await models.eventlogModel.create({
+          tick: now,
+          type: '知識點操作',
+          desc: '撤回知識點編輯階段單一目標許可',
+          KB: KBID,
+          user: new ObjectId(io.p2p.request.session.passport.user)
+        });
+        KB.eventLog.push(event._id);
+        await KB.save();
+        await getStage(stageID, enableBroadcast);
+      } else {
+        io.p2p.emit('accessViolation', {
+          where: '知識點編輯',
+          tick: moment().unix(),
+          action: '撤回知識點階段單一目標許可',
+          loginRequire: false
+        });
+      }
+    }
+    return;
+  });
+
   io.p2p.on('revokeObjectives', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       let globalSetting = await models.settingModel.findOne({}).exec();
