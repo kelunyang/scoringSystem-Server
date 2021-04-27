@@ -7,6 +7,7 @@ const generator = require('generate-password');
 const nodemailer = require("nodemailer");
 const validator = require('validator');
 const _ = require('lodash');
+const APPENDMODE = false;
 
 module.exports = (io, models) => {
   let getUsers = async() => {
@@ -458,45 +459,63 @@ module.exports = (io, models) => {
 
   io.p2p.on('modUserTags', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let setting = await models.settingModel.findOne({}).exec();
       let count = 0;
       let zeroTag = [];
-      let newTags = await availableTags(_.map(data.tags, (item) => {
-        return new ObjectId(item);
-      }));
-      for(let i=0; i<data.users.length; i++) {
-        let userID = data.users[i]._id;
-        let user = await models.userModel.findOne({
-          _id: new ObjectId(userID)
-        }).exec();
-        let usernewTags = newTags;
-        let tagdeleteTOBE = _.differenceWith(user.tags, usernewTags, (uTag, nTag) => {
-          return uTag.equals(nTag);
-        });
-        for(let i=0; i< tagdeleteTOBE.length; i++) {
-          let tag = tagdeleteTOBE[i];
-          let settingTags = _.intersectionWith(setting.settingTags, [tag], (sTag, dTag) => {
-            return sTag.equals(dTag);
+      if(data.mode === APPENDMODE) {
+        for(let i=0; i<data.users.length; i++) {
+          let newtags = _.map(data.tags, (item) => {
+            return new ObjectId(item);
+          })
+          let userID = data.users[i]._id;
+          let user = await models.userModel.findOne({
+            _id: new ObjectId(userID)
+          }).exec();
+          user.tags = _.unionWith(user.tags, newtags, (uTag, dTag) => {
+            return uTag.equals(dTag);
           });
-          if(settingTags.length > 0) {
-            let settingTagUsers = await models.userModel.find({
-              tags: { $in: setting.settingTags},
-              _id: { $ne: user._id }
-            }).exec();
-            if(settingTagUsers.length === 0) { 
-              zeroTag.push(tag);
-              usernewTags.push(tag);
+          user.modDate = moment().unix();
+          await user.save();
+          count++;
+        }
+      } else {
+        let setting = await models.settingModel.findOne({}).exec();
+        let newTags = await availableTags(_.map(data.tags, (item) => {
+          return new ObjectId(item);
+        }));
+        for(let i=0; i<data.users.length; i++) {
+          let userID = data.users[i]._id;
+          let user = await models.userModel.findOne({
+            _id: new ObjectId(userID)
+          }).exec();
+          let usernewTags = newTags;
+          let tagdeleteTOBE = _.differenceWith(user.tags, usernewTags, (uTag, nTag) => {
+            return uTag.equals(nTag);
+          });
+          for(let i=0; i< tagdeleteTOBE.length; i++) {
+            let tag = tagdeleteTOBE[i];
+            let settingTags = _.intersectionWith(setting.settingTags, [tag], (sTag, dTag) => {
+              return sTag.equals(dTag);
+            });
+            if(settingTags.length > 0) {
+              let settingTagUsers = await models.userModel.find({
+                tags: { $in: setting.settingTags},
+                _id: { $ne: user._id }
+              }).exec();
+              if(settingTagUsers.length === 0) { 
+                zeroTag.push(tag);
+                usernewTags.push(tag);
+              }
             }
           }
+          user.tags = usernewTags;
+          user.modDate = moment().unix();
+          await user.save();
+          count++;
         }
-        user.tags = usernewTags;
-        user.modDate = moment().unix();
-        await user.save();
-        count++;
+        zeroTag = _.uniqWith(zeroTag, (aTag, bTag) => {
+          return aTag.equals(bTag);
+        });
       }
-      zeroTag = _.uniqWith(zeroTag, (aTag, bTag) => {
-        return aTag.equals(bTag);
-      })
       io.p2p.emit('modUserTags', {
         planned: data.users.length,
         processed: count,

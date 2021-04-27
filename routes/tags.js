@@ -17,7 +17,7 @@ module.exports = (io, models) => {
         let settingIncluded = _.intersectionWith(user.tags, setting.settingTags, (uTag, sTag) => {
           return uTag.equals(sTag);
         });
-        tags = await models.tagModel.find({}).sort({_id: 1}).exec();
+        tags = await models.tagModel.find({}).exec();
         if(settingIncluded.length === 0) {
           tags = _.differenceWith(tags, setting.settingTags, (tag, sTag) => {
             return tag.equals(sTag);
