@@ -1246,65 +1246,75 @@ module.exports = (io, models) => {
         var stages = await models.stageModel.find({
           KB: new ObjectId(data.subject._id)
         }).exec();
-        let issues = await models.issueModel.find({
-          KB: new ObjectId(data.subject._id),
-          version:  { $exists: false },
-          parent:  { $exists: false }
-        }).exec();
+        if(data.setting.issues) {
+          let issues = await models.issueModel.find({
+            KB: new ObjectId(data.subject._id),
+            version:  { $exists: false },
+            parent:  { $exists: false }
+          }).exec();
+        }
         for(let k=0; k<data.target.length; k++) {
           let newStages = [];
           var target = await models.KBModel.findOne({
             _id: new ObjectId(data.target[k])
           }).exec();
-          for(let i=0; i<issues.length; i++) {
-            let issue = issues[i];
-            newIssue = await models.issueModel.create({
-              KB: target._id,
-              tick: now,
-              title: issue.title,
-              position: issue.position,
-              body: issue.body,
-              user: issue.user,
-              status: issue.status,
-              star: issue.star,
-              sealed: issue.sealed,
-              parent: issue.parent
-            });
+          if(data.setting.issues) {
+            for(let i=0; i<issues.length; i++) {
+              let issue = issues[i];
+              newIssue = await models.issueModel.create({
+                KB: target._id,
+                tick: now,
+                title: issue.title,
+                position: issue.position,
+                body: issue.body,
+                user: issue.user,
+                status: issue.status,
+                star: issue.star,
+                sealed: issue.sealed,
+                parent: issue.parent
+              });
+            }
           }
           for(let i=0; i<stages.length; i++) {
-            let stage = stages[i];
-            var newStage = await models.stageModel.create({ 
-              createDate: now,
-              modDate: now,
-              current: false,
-              startTick: stage.startTick,
-              name: stage.name,
-              dueTick: stage.dueTick,
-              pmTags: stage.pmTags,
-              reviewerTags: stage.reviewerTags,
-              vendorTags: stage.vendorTags,
-              writerTags: stage.writerTags,
-              finalTags: stage.finalTags,
-              coolDown: stage.coolDown,
-              sort: stage.sort,
-              KB: target._id
-            });
-            newStages.push(newStage);
-            let objectives = await models.objectiveModel.find({
-              stage: stage._id
-            }).exec();
-            let objs = [];
-            for(let j=0;j<objectives.length;j++) {
-              let obj = objectives[j];
-              let newObj = await models.objectiveModel.create({
-                name: obj.name,
-                stage: newStage._id,
-                KB: target._id,
-                tick: moment().unix()
+            if(_.findIndex(data.setting.stages, (item) => {
+              return item === i+1;
+            }) > -1) {
+              let stage = stages[i];
+              var newStage = await models.stageModel.create({ 
+                createDate: now,
+                modDate: now,
+                current: false,
+                startTick: stage.startTick,
+                name: stage.name,
+                dueTick: stage.dueTick,
+                pmTags: data.setting.roles ? stage.pmTags : [],
+                reviewerTags: data.setting.roles ? stage.reviewerTags : [],
+                vendorTags: data.setting.roles ? stage.vendorTags: [],
+                writerTags: data.setting.roles ? stage.writerTags : [],
+                finalTags: data.setting.roles ? stage.finalTags : [],
+                coolDown: stage.coolDown,
+                sort: stage.sort,
+                KB: target._id
               });
-              objs.push(newObj._id);
+              newStages.push(newStage);
+              if(data.setting.objectives) {
+                let objectives = await models.objectiveModel.find({
+                  stage: stage._id
+                }).exec();
+                let objs = [];
+                for(let j=0;j<objectives.length;j++) {
+                  let obj = objectives[j];
+                  let newObj = await models.objectiveModel.create({
+                    name: obj.name,
+                    stage: newStage._id,
+                    KB: target._id,
+                    tick: moment().unix()
+                  });
+                  objs.push(newObj._id);
+                }
+                await models.stageModel.updateOne({ _id: newStage._id }, { objectives: objs });
+              }
             }
-            await models.stageModel.updateOne({ _id: newStage._id }, { objectives: objs });
           }
           target.stages = newStages;
           let event = await models.eventlogModel.create({
