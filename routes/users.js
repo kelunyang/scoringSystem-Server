@@ -372,7 +372,7 @@ module.exports = (io, models) => {
       await user.save();
       io.p2p.emit('modUsers', {
         name: user.name,
-        zeroTag: zeroTag
+        zeroTag: zeroTag.length
       });
       getUsers();
     }

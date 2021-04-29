@@ -3,10 +3,9 @@ const router = express.Router();
 const moment = require('moment');
 const { ObjectId } = require('mongodb');
 const _ = require('lodash');
-const { forIn } = require('lodash');
 
 module.exports = (io, models) => {
-  io.p2p.on('getTags', async (data) => {
+  let getTags = async () => {
     let tags = [];
     if('passport' in io.p2p.request.session) {
       if('user' in io.p2p.request.session.passport) {
@@ -43,16 +42,27 @@ module.exports = (io, models) => {
     }
     io.p2p.emit('getTags', tags);
     return;
+  }
+  io.p2p.on('getTags', async (data) => {
+    await getTags();
   });
 
   io.p2p.on('addTag', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      await models.tagModel.create({ 
-        tick: moment().unix(),
-        name: data,
-      });
-      let tags = await models.tagModel.find({}).sort({_id: 1}).exec();
-      io.p2p.emit('getTags', tags);
+      let tag = await models.tagModel.find({
+        name: data
+      }).exec();
+      if(tag.length === 0) {
+        await models.tagModel.create({ 
+          tick: moment().unix(),
+          name: data,
+        });
+        io.p2p.emit('addTag', true);
+        await getTags();
+      } else {
+        io.p2p.emit('addTag', false);
+        await getTags();
+      }
     }
     return;
   });
