@@ -417,13 +417,21 @@ module.exports = (io, models) => {
     return;
   });
 
-  io.p2p.on('getRobotUsers', async (data) => {
+  io.p2p.on('getTagUsers', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let setting = await models.settingModel.findOne({}).exec();
+      let settingTags = [];
+      if(data === undefined) {
+        let setting = await models.settingModel.findOne({}).exec();
+        settingTags = setting.robotTag;
+      } else {
+        settingTags = _.map(data, (item) => {
+          return new ObjectId(item);
+        });
+      }
       let users = await models.userModel.find({
-        tags: setting.robotTag
-      }).sort({_id: 1}).exec();
-      io.p2p.emit('getRobotUsers', users);
+        tags: { $in: settingTags }
+      }).exec();
+      io.p2p.emit('getTagUsers', users);
     }
     return;
   });

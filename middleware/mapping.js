@@ -131,10 +131,10 @@ module.exports = async (models) => {
       authRange: setting.settingTags,
       loginRequire: true
     },
-    getRobotUsers: {
-      action: '取得機器人使用者',
+    getTagUsers: {
+      action: '取得特定群組使用者',
       where: '使用者模組',
-      authRange: setting.settingTags,
+      authRange: [],
       loginRequire: true
     },
     sendMsgFile: {
