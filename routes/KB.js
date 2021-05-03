@@ -1246,8 +1246,9 @@ module.exports = (io, models) => {
         var stages = await models.stageModel.find({
           KB: new ObjectId(data.subject._id)
         }).exec();
+        let issues = [];
         if(data.setting.issues) {
-          let issues = await models.issueModel.find({
+          issues = await models.issueModel.find({
             KB: new ObjectId(data.subject._id),
             version:  { $exists: false },
             parent:  { $exists: false }
