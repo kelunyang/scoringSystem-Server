@@ -1254,7 +1254,6 @@ module.exports = (io, models) => {
           }).exec();
         }
         for(let k=0; k<data.target.length; k++) {
-          let newStages = [];
           var target = await models.KBModel.findOne({
             _id: new ObjectId(data.target[k])
           }).exec();
@@ -1277,7 +1276,7 @@ module.exports = (io, models) => {
           }
           for(let i=0; i<stages.length; i++) {
             if(_.findIndex(data.setting.stages, (item) => {
-              return item === i+1;
+              return item === i;
             }) > -1) {
               let stage = stages[i];
               var newStage = await models.stageModel.create({ 
@@ -1293,10 +1292,10 @@ module.exports = (io, models) => {
                 writerTags: data.setting.roles ? stage.writerTags : [],
                 finalTags: data.setting.roles ? stage.finalTags : [],
                 coolDown: stage.coolDown,
-                sort: stage.sort,
+                sort: target.stages.length - 1,
                 KB: target._id
               });
-              newStages.push(newStage);
+              target.stages.push(newStage);
               if(data.setting.objectives) {
                 let objectives = await models.objectiveModel.find({
                   stage: stage._id
@@ -1316,7 +1315,6 @@ module.exports = (io, models) => {
               }
             }
           }
-          target.stages = newStages;
           let event = await models.eventlogModel.create({
             tick: now,
             type: '知識點操作',
