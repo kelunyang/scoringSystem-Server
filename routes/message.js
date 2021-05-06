@@ -44,7 +44,7 @@ module.exports = (io, models) => {
 
   io.p2p.on('getLINElog', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let lineDB = await models.lineModel.find({}).sort({_id: 1}).populate({
+      let lineDB = await models.lineModel.find({}).sort({tick: -1}).populate({
         path: 'log',
         populate: { 
           path: 'uid',
