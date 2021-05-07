@@ -256,7 +256,7 @@ module.exports = (io, models) => {
           userID
         ],
         parent: data === undefined || data === null ? undefined : new ObjectId(data),
-        status: true
+        status: false
       });
       io.p2p.emit('addFeedback', {
         _id: feedback._id,
