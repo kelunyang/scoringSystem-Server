@@ -101,7 +101,7 @@ module.exports = (app, passport, models) => {
       });
       let user = await models.userModel.findOne({
         _id: ObjectId(req.session.passport.user)
-      }).sort({_id: 1}).exec();
+      }).exec();
       let tick = moment().unix();
       user.lineCode = req.query.code;
       user.lineToken = result.data.access_token;

@@ -34,7 +34,7 @@ module.exports = async (socket, models, [event], next) => {
                     }
                     let user = await models.userModel.findOne({
                         _id: ObjectId(socket.request.session.passport.user)
-                    }).sort({_id: 1}).exec();
+                    }).exec();
                     if(action.authRange.length !== 0) {
                         let found = (_.intersectionWith(action.authRange, user.tags, (aTag, uTag) => {
                             return aTag.equals(uTag);

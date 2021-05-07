@@ -163,22 +163,41 @@ module.exports = (io, models) => {
   io.p2p.on('deleteissueFile', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       let globalSetting = await models.settingModel.findOne({}).exec();
-      try {
-        let exist = await fs.access(globalSetting.storageLocation + '/' + data.fileID);
-        if(exist) { await fs.remove(globalSetting.storageLocation + '/' + data.fileID); }
-        await models.fileModel.deleteOne({
-          _id: data.fileID
-        }).exec();
-        let issue = await models.issuebackModel.findOne({
-          _id: data.issueID
-        }).populate('attachments').exec();
-        issue.attachments = issue.attachments.filter((att) => {
-          return !att._id.equals(data.fileID);
-        });
-        io.p2p.emit('getissueAttachment', issue.attachments);
-      } catch(err) {
-        console.log(JSON.stringify(err));
-        io.p2p.emit('issueFileDeleteError', JSON.stringify(err)); 
+      let issue = await models.issueModel.findOne({
+        _id: data.issueID
+      })
+      .populate('attachments')
+      .populate({
+        path: 'KB',
+        populate: { path: 'stages' }
+      })
+      .exec();
+      let currentUser = new ObjectId(io.p2p.request.session.passport.user);
+      let KBstage = _.find(issue.KB.stages, (stage) => {
+          return stage.current;
+      });
+      let user =  await models.userModel.findOne({
+        _id: currentUser
+      }).exec();
+      let autherizedTags = _.flatten([KBstage.pmTags, globalSetting.settingTags]);
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(aTag);
+      })).length > 0;
+      if(tagCheck || (new ObjectId(issue.user)).equals(currentUser)) {
+        try {
+          let exist = await fs.access(globalSetting.storageLocation + '/' + data.fileID);
+          if(exist) { await fs.remove(globalSetting.storageLocation + '/' + data.fileID); }
+          await models.fileModel.deleteOne({
+            _id: data.fileID
+          }).exec();
+          issue.attachments = issue.attachments.filter((att) => {
+            return !att._id.equals(data.fileID);
+          });
+          io.p2p.emit('getissueAttachment', issue.attachments);
+        } catch(err) {
+          console.log(JSON.stringify(err));
+          io.p2p.emit('issueFileDeleteError', JSON.stringify(err)); 
+        }
       }
     }
     return;

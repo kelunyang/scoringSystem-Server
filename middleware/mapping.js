@@ -623,6 +623,12 @@ module.exports = async (models) => {
       authRange: [],
       loginRequire: true
     },
+    deleteissueFile: {
+      action: '刪除Issue附件',
+      where: '知識點模組',
+      authRange: [],
+      loginRequire: true
+    },
     setReadedIssue: {
       action: '設定讀取Issue清單',
       where: '知識點模組',

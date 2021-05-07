@@ -67,15 +67,9 @@ module.exports = (io, models) => {
           _id: currentUser
         }).exec();
         let autherizedTags = _.flatten([KBstage.pmTags, KBstage.writerTags, KBstage.reviewerTags, KBstage.vendorTags, globalSetting.settingTags]);
-        let tagCheck = false;
-        for(let i=0; i< user.tags.length; i++) {
-          let tag = user.tags[i];
-          if(!tagCheck) {
-            tagCheck = _.find(autherizedTags, (aTag) => {
-              return aTag.equals(tag);
-            }) !== undefined ? true : false;
-          }
-        }
+        let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+          return uTag.equals(aTag);
+        })).length > 0;
         if(tagCheck || (new ObjectId(issue.user)).equals(currentUser)) {
           if(data.title !== null) { issue.title = data.title; }
           issue.parent = data.parent === undefined || data.parent === null ? undefined : new ObjectId(data.parent);

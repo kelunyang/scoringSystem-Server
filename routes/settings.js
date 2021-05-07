@@ -82,17 +82,20 @@ module.exports = (io, models) => {
 
   io.p2p.on('getGithubFrontendCommit', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
+      let commits = [];
       let globalSetting = await models.settingModel.findOne({}).exec();
       let githubCommits = await axios.get('https://api.github.com/repos/' + globalSetting.frontendRepo + '/commits\?access_token\=' + globalSetting.githubKey);
-      let commits = _.map(githubCommits.data, (gCommit) => {
-        return {
-          id: gCommit.sha,
-          message: gCommit.commit.message,
-          committerName: gCommit.commit.committer.name,
-          committerEmail: gCommit.commit.committer.email,
-          commitDate: gCommit.commit.committer.date
-        }
-      });
+      if('data' in githubCommits) {
+        commits = _.map(githubCommits.data.slice(0, 5), (gCommit) => {
+          return {
+            id: gCommit.sha,
+            message: gCommit.commit.message,
+            committerName: gCommit.commit.committer.name,
+            committerEmail: gCommit.commit.committer.email,
+            commitDate: gCommit.commit.committer.date
+          }
+        });
+      }
       io.p2p.emit('getGithubFrontendCommit', commits);
     }
     return;
@@ -100,17 +103,20 @@ module.exports = (io, models) => {
 
   io.p2p.on('getGithubBackendCommit', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
+      let commits = [];
       let globalSetting = await models.settingModel.findOne({}).exec();
       let githubCommits = await axios.get('https://api.github.com/repos/' + globalSetting.backendRepo + '/commits\?access_token\=' + globalSetting.githubKey);
-      let commits = _.map(githubCommits.data, (gCommit) => {
-        return {
-          id: gCommit.sha,
-          message: gCommit.commit.message,
-          committerName: gCommit.commit.committer.name,
-          committerEmail: gCommit.commit.committer.email,
-          commitDate: gCommit.commit.committer.date
-        }
-      });
+      if('data' in githubCommits) {
+        commits = _.map(githubCommits.data.slice(0, 5), (gCommit) => {
+          return {
+            id: gCommit.sha,
+            message: gCommit.commit.message,
+            committerName: gCommit.commit.committer.name,
+            committerEmail: gCommit.commit.committer.email,
+            commitDate: gCommit.commit.committer.date
+          }
+        });
+      }
       io.p2p.emit('getGithubBackendCommit', commits);
     }
     return;
