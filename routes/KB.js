@@ -231,6 +231,7 @@ module.exports = (io, models) => {
       let readedList = await models.readedIssueModel.aggregate([
         {
           $match: {
+            user: user,
             issue: {
               $in: issueList
             }

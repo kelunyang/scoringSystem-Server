@@ -551,6 +551,7 @@ module.exports = (io, models) => {
         files[data.uuid].data = [];
         files[data.uuid].typeTags = data.typeTags;
         files[data.uuid].sourceTag = data.sourceTag;
+        files[data.uuid].overwrite = data.overwrite;
       }
       data.data = Buffer.from(new Uint8Array(data.data)); 
       files[data.uuid].data.push(data.data); 
@@ -604,7 +605,12 @@ module.exports = (io, models) => {
                           value: data[k]
                         });
                       } else {
-                        fails.add(KBtitle + '已有重複資料');
+                        if(files[data.uuid].overwrite) {
+                          oldstatistics.value = data[k];
+                          await oldstatistics.save();
+                        } else {
+                          fails.add(KBtitle + '已有重複資料');
+                        }
                       }
                     }
                   } else {
