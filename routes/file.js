@@ -556,7 +556,8 @@ module.exports = (io, models) => {
       data.data = Buffer.from(new Uint8Array(data.data)); 
       files[data.uuid].data.push(data.data); 
       files[data.uuid].slice++;
-      if (files[data.uuid].slice * 100000 >= files[data.uuid].size) { 
+      if (files[data.uuid].slice * 100000 >= files[data.uuid].size) {
+        let overwrite = files[data.uuid].overwrite;
         let fileBuffer = Buffer.concat(files[data.uuid].data);
         let sourceTag = new ObjectId(files[data.uuid].sourceTag);
         let typeTags = _.map(files[data.uuid].typeTags, (tag) => {
@@ -602,11 +603,11 @@ module.exports = (io, models) => {
                           logTick: dates[k-1],
                           sourceTag: sourceTag,
                           typeTags: typeTags,
-                          value: data[k]
+                          value: data[k] === '' ? 0 : data[k]
                         });
                       } else {
-                        if(files[data.uuid].overwrite) {
-                          oldstatistics.value = data[k];
+                        if(overwrite) {
+                          oldstatistics.value = data[k] === '' ? 0 : data[k];
                           await oldstatistics.save();
                         } else {
                           fails.add(KBtitle + '已有重複資料');
