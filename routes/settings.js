@@ -84,7 +84,11 @@ module.exports = (io, models) => {
     if(io.p2p.request.session.status.type === 3) {
       let commits = [];
       let globalSetting = await models.settingModel.findOne({}).exec();
-      let githubCommits = await axios.get('https://api.github.com/repos/' + globalSetting.frontendRepo + '/commits\?access_token\=' + globalSetting.githubKey);
+      let githubCommits = await axios.get('https://api.github.com/repos/' + globalSetting.frontendRepo + '/commits',{
+        headers: {
+          'Authorization': `token ${globalSetting.githubKey}`
+        }
+      });
       if('data' in githubCommits) {
         commits = _.map(githubCommits.data.slice(0, 5), (gCommit) => {
           return {
@@ -105,7 +109,11 @@ module.exports = (io, models) => {
     if(io.p2p.request.session.status.type === 3) {
       let commits = [];
       let globalSetting = await models.settingModel.findOne({}).exec();
-      let githubCommits = await axios.get('https://api.github.com/repos/' + globalSetting.backendRepo + '/commits\?access_token\=' + globalSetting.githubKey);
+      let githubCommits = await axios.get('https://api.github.com/repos/' + globalSetting.backendRepo + '/commits',{
+        headers: {
+          'Authorization': `token ${globalSetting.githubKey}`
+        }
+      });
       if('data' in githubCommits) {
         commits = _.map(githubCommits.data.slice(0, 5), (gCommit) => {
           return {

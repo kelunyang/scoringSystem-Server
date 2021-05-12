@@ -12,9 +12,9 @@ module.exports = (io, models) => {
     var collection = await models.feedbackModel.find({
       parent: undefined
     }).sort({
-      status: -1,
-      rating: -1,
-      tick: -1
+      status: 1,
+      tick: -1,
+      rating: -1
     })
     .populate('users', '-password -lineToken -lineCode')
     .populate('user', '-password -lineToken -lineCode')
