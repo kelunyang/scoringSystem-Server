@@ -3,6 +3,7 @@ const { ObjectID } = require("mongodb");
 module.exports = function (mongoose) {
   let schema = mongoose.Schema;
   let globalSettingSchema =  new schema({
+    defaultPassword: String,
     settingTags: [
       {
         type: ObjectID,

@@ -3,7 +3,6 @@ const router = express.Router();
 const moment = require('moment');
 const bcrypt = require('bcryptjs');
 const { ObjectId } = require('mongodb');
-const generator = require('generate-password');
 const nodemailer = require("nodemailer");
 const validator = require('validator');
 const _ = require('lodash');
@@ -181,9 +180,7 @@ module.exports = (io, models) => {
     if(io.p2p.request.session.status.type === 3) {
       let robotSetting = await models.robotModel.findOne({}).exec();
       let setting = await models.settingModel.findOne({}).exec();
-      let passwords = generator.generateMultiple(data.email.length, {
-        length: 10
-      });
+      let password = setting.defaultPassword;
       let count = 0;
       let emailDB = await models.userModel.aggregate([
         {
@@ -215,7 +212,7 @@ module.exports = (io, models) => {
             createDate: currentTick,
             modDate: currentTick,
             firstRun: true,
-            password: bcrypt.hashSync(passwords[i], bcrypt.genSaltSync(10)),
+            password: bcrypt.hashSync(password, bcrypt.genSaltSync(10)),
           });
           let transporter = nodemailer.createTransport({
             host: robotSetting.mailSMTP,
@@ -231,8 +228,8 @@ module.exports = (io, models) => {
               from: '"臺北市學科影片審查系統" <kelunyang@outlook.com>',
               to: proceeingMail,
               subject: "臺北市學科影片審查系統：帳號開通通知信",
-              text: "您好，您的帳號已經開通，你的帳號就是你收到信的Email，您第一次登入的密碼是：" + passwords[i] + "\n請記得在登入後修改密碼並填入相關資訊，最重要的是，登入後，請務必要綁定您LINE，我們才能通知您喔！\n登入網址：" + setting.siteLocation, // plain text body
-              html: "<p>您好，您的帳號已經開通，你的帳號就是你收到信的Email，您的暫時密碼是：" + passwords[i] + "</p><p>請記得在登入後修改密碼並填入相關資訊，最重要的是，登入後，請務必要綁定您LINE，我們才能通知您喔！</p><p>登入網址：<a href='" + setting.siteLocation + "' target='_blank' title='登入網址'>" + setting.siteLocation + "</a></p>", // html body
+              text: "您好，您的帳號已經開通，你的帳號就是你收到信的Email，系統預設密碼密碼是：" + password + "\n請記得在登入後修改密碼並填入相關資訊，最重要的是，登入後，請務必要綁定您LINE，我們才能通知您喔！\n登入網址：" + setting.siteLocation, // plain text body
+              html: "<p>您好，您的帳號已經開通，你的帳號就是你收到信的Email，系統預設密碼是：" + password + "</p><p>請記得在登入後修改密碼並填入相關資訊，最重要的是，登入後，請務必要綁定您LINE，我們才能通知您喔！</p><p>登入網址：<a href='" + setting.siteLocation + "' target='_blank' title='登入網址'>" + setting.siteLocation + "</a></p>", // html body
             });
           } catch(err) {
             io.p2p.emit('createUsersReport', proceeingMail + '帳號建立錯誤');
@@ -261,9 +258,7 @@ module.exports = (io, models) => {
     } else {
       let setting = await models.settingModel.findOne({}).exec();
       let robotSetting = await models.robotModel.findOne({}).exec();
-      let password = generator.generate({
-        length: 10
-      });
+      let password = setting.defaultPassword;
       user.password = bcrypt.hashSync(password, bcrypt.genSaltSync(10));
       user.firstRun = true;
       await user.save();
@@ -281,8 +276,8 @@ module.exports = (io, models) => {
           from: '"臺北市學科影片審查系統" <kelunyang@outlook.com>',
           to: user.email,
           subject: "臺北市學科影片審查系統：帳號密碼重置通知信",
-          text: "您好，您的密碼已經被重置了，您的暫時登入密碼是：" + password + "\n請記得在登入後修改密碼！\n登入網址：" + setting.siteLocation, // plain text body
-          html: "<p>您好，您的帳號已經被重置了，您的暫時登入密碼是：" + password + "</p><p>請記得在登入後修改密碼！</p><p>登入網址：<a href='" + setting.siteLocation + "' target='_blank' title='登入網址'>" + setting.siteLocation + "</a></p>", // html body
+          text: "您好，您的密碼已經被重置了，系統預設密碼是：" + password + "\n請記得在登入後修改密碼！\n登入網址：" + setting.siteLocation, // plain text body
+          html: "<p>您好，您的帳號已經被重置了，系統預設密碼是：" + password + "</p><p>請記得在登入後修改密碼！</p><p>登入網址：<a href='" + setting.siteLocation + "' target='_blank' title='登入網址'>" + setting.siteLocation + "</a></p>", // html body
         });
       } catch(err) {
         console.log(err);
@@ -301,9 +296,7 @@ module.exports = (io, models) => {
       let user = await models.userModel.findOne({
         _id: new ObjectId(data)
       }).exec();
-      let password = generator.generate({
-        length: 10
-      });
+      let password = setting.defaultPassword;
       user.password = bcrypt.hashSync(password, bcrypt.genSaltSync(10));
       user.firstRun = true;
       await user.save();
@@ -321,8 +314,8 @@ module.exports = (io, models) => {
           from: '"臺北市學科影片審查系統" <kelunyang@outlook.com>',
           to: user.email,
           subject: "臺北市學科影片審查系統：帳號密碼重置通知信",
-          text: "您好，您的密碼已經被重置了，您的暫時登入密碼是：" + password + "\n請記得在登入後修改密碼！\n登入網址：" + setting.siteLocation, // plain text body
-          html: "<p>您好，您的帳號已經被重置了，您的暫時登入密碼是：" + password + "</p><p>請記得在登入後修改密碼！</p><p>登入網址：<a href='" + setting.siteLocation + "' target='_blank' title='登入網址'>" + setting.siteLocation + "</a></p>", // html body
+          text: "您好，您的密碼已經被重置了，系統預設密碼是：" + password + "\n請記得在登入後修改密碼！\n登入網址：" + setting.siteLocation, // plain text body
+          html: "<p>您好，您的帳號已經被重置了，系統預設密碼是：" + password + "</p><p>請記得在登入後修改密碼！</p><p>登入網址：<a href='" + setting.siteLocation + "' target='_blank' title='登入網址'>" + setting.siteLocation + "</a></p>", // html body
         });
       } catch(err) {
         console.log(err);

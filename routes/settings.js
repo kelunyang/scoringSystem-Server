@@ -149,6 +149,7 @@ module.exports = (io, models) => {
   io.p2p.on('setSetting', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       let gSetting = await models.settingModel.findOne({}).exec();
+      gSetting.defaultPassword = data.defaultPassword;
       gSetting.settingTags = data.selectedSysTags.length > 0 ? data.selectedSysTags : gSetting.settingTags;
       gSetting.userTags = data.selectedUsrTags.length > 0 ? data.selectedUsrTags : gSetting.userTags;
       gSetting.projectTags = data.selectedflowTags.length > 0 ? data.selectedflowTags : gSetting.projectTags;
