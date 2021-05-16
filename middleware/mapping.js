@@ -206,13 +206,13 @@ module.exports = async (models) => {
     getUsers: {
       action: '取得使用者列表',
       where: '使用者模組',
-      authRange: _.flatten([setting.settingTags, setting.userTags]),
+      authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
       loginRequire: true
     },
     modUserTags: {
       action: '修改使用者的用戶標籤',
       where: '使用者模組',
-      authRange: _.flatten([setting.settingTags, setting.userTags]),
+      authRange: _.flatten([setting.settingTags, setting.userTags, setting.projectTags]),
       loginRequire: true
     },
     removeUser: {

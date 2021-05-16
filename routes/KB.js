@@ -1373,8 +1373,9 @@ module.exports = (io, models) => {
 
   io.p2p.on('listDashBoard', async () => {
     if(io.p2p.request.session.status.type === 3) {
+      let userID = new ObjectId(io.p2p.request.session.passport.user);
       let user = await models.userModel.findOne({
-        _id: new ObjectId(io.p2p.request.session.passport.user)
+        _id: userID
       }).exec();
       let queryObj = [
         {
@@ -1396,9 +1397,23 @@ module.exports = (io, models) => {
         {
           $lookup: {
             from: 'eventlogDB',
-            localField: 'eventLog',
-            foreignField: '_id',
-            as: 'eventLog'
+            as: 'eventLog',
+            let: { indicator_id: '$KB' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: [ '$eventLog', '$$indicator_id' ] }
+                }
+              },
+              {
+                $sort: {
+                  tick: -1
+                }
+              },
+              {
+                $limit: 5
+              }
+            ]
           },
         },
         { $unwind: { "path": "$eventLog", "preserveNullAndEmptyArrays": true } },
@@ -1437,28 +1452,71 @@ module.exports = (io, models) => {
           }
         },
         {
-        $group: {
-          _id: '$_id',
-          descAtt: { $first: '$descAtt'},
-          tag: { $first: '$tag'},
-          issues: { $first: '$issues'},
-          eventLog: {
-            $push: '$eventLog'
-          },
-          stages: { $first: '$stages'},
-          createDate: { $first: '$createDate'},
-          modDate: { $first: '$modDate'},
-          title: { $first: '$title'},
-          sort: { $first: '$sort'},
-          user: { $first: '$user'},
-          desc: { $first: '$desc'},
-          textbook: { $first: '$textbook'},
-          chapter: { $first: '$chapter'},
-          versions: { $first: '$versions'}
+          $group: {
+            _id: '$_id',
+            descAtt: { $first: '$descAtt'},
+            tag: { $first: '$tag'},
+            issues: { $first: '$issues'},
+            eventLog: {
+              $push: '$eventLog'
+            },
+            stages: { $first: '$stages'},
+            createDate: { $first: '$createDate'},
+            modDate: { $first: '$modDate'},
+            title: { $first: '$title'},
+            sort: { $first: '$sort'},
+            user: { $first: '$user'},
+            desc: { $first: '$desc'},
+            textbook: { $first: '$textbook'},
+            chapter: { $first: '$chapter'},
+            versions: { $first: '$versions'}
+          }
         }
-      }];
+      ];
       var collection = await models.KBModel.aggregate(queryObj);
       io.p2p.emit('listDashBoard', collection);
+      if(collection.length > 0) {
+        let KBs = _.map(collection, '_id');
+        let readedIssues = await models.readedIssueModel.aggregate([
+          {
+            $match: {
+              user: userID
+            }
+          },
+          {
+            $group: {
+              _id: null,
+              issues: { $push: '$issue' }
+            }
+          }
+        ]);
+        let readed = readedIssues.length > 0 ? readedIssues[0].issues : [];
+        let unreadedCount = await models.issueModel.aggregate([
+          {
+            $match: {
+              KB: {
+                $in: KBs
+              },
+              _id: {
+                $nin: readed
+              }
+            }
+          },
+          {
+            $group: {
+              _id: '$KB',
+              numberOfissue: { $push: '$_id' }
+            }
+          },
+          {
+            $project: {
+              _id: 1,
+              numberOfissue: { $size: '$numberOfissue' }
+            }
+          }
+        ]);
+        io.p2p.emit('dashBoardUnreaded', unreadedCount);
+      }
     }
     return;
   });

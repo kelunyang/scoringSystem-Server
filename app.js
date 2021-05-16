@@ -218,7 +218,6 @@ try {
                     socket.emit('dbStatus', mongoose.connection.readyState === 1);
                 });
         
-                let index = require('./routes/index');
                 let users = require('./routes/users')({
                     p2p: socket,
                     p2n: io
@@ -255,7 +254,6 @@ try {
                     p2p: socket,
                     p2n: io
                 }, modelList);
-                app.use('/', index);
                 app.use('/users', users);
                 app.use('/settings', settings);
                 app.use('/message', message);
