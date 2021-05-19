@@ -1475,50 +1475,56 @@ module.exports = (io, models) => {
       ];
       var collection = await models.KBModel.aggregate(queryObj);
       io.p2p.emit('listDashBoard', collection);
-      if(collection.length > 0) {
-        let KBs = _.map(collection, '_id');
-        let readedIssues = await models.readedIssueModel.aggregate([
-          {
-            $match: {
-              user: userID
-            }
-          },
-          {
-            $group: {
-              _id: null,
-              issues: { $push: '$issue' }
-            }
-          }
-        ]);
-        let readed = readedIssues.length > 0 ? readedIssues[0].issues : [];
-        let unreadedCount = await models.issueModel.aggregate([
-          {
-            $match: {
-              KB: {
-                $in: KBs
-              },
-              _id: {
-                $nin: readed
-              }
-            }
-          },
-          {
-            $group: {
-              _id: '$KB',
-              numberOfissue: { $push: '$_id' }
-            }
-          },
-          {
-            $project: {
-              _id: 1,
-              numberOfissue: { $size: '$numberOfissue' }
-            }
-          }
-        ]);
-        io.p2p.emit('dashBoardUnreaded', unreadedCount);
-      }
     }
     return;
+  });
+
+  io.p2p.on('dashBoardUnreaded', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      let userID = new ObjectId(io.p2p.request.session.passport.user);
+      let KBs = _.map(data, (item) => {
+        return new ObjectId(item._id);
+      });
+      let readedIssues = await models.readedIssueModel.aggregate([
+        {
+          $match: {
+            user: userID
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            issues: { $push: '$issue' }
+          }
+        }
+      ]);
+      let readed = readedIssues.length > 0 ? readedIssues[0].issues : [];
+      let unreadedCount = await models.issueModel.aggregate([
+        {
+          $match: {
+            KB: {
+              $in: KBs
+            },
+            _id: {
+              $nin: readed
+            }
+          }
+        },
+        {
+          $group: {
+            _id: '$KB',
+            numberOfissue: { $push: '$_id' }
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            numberOfissue: { $size: '$numberOfissue' }
+          }
+        }
+      ]);
+      io.p2p.emit('dashBoardUnreaded', unreadedCount);
+    }
   });
 
   io.p2p.on('participantStatstics', async (data) => {
