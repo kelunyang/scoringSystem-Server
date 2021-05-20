@@ -1483,7 +1483,7 @@ module.exports = (io, models) => {
     if(io.p2p.request.session.status.type === 3) {
       let userID = new ObjectId(io.p2p.request.session.passport.user);
       let KBs = _.map(data, (item) => {
-        return new ObjectId(item._id);
+        return new ObjectId(item);
       });
       let readedIssues = await models.readedIssueModel.aggregate([
         {
