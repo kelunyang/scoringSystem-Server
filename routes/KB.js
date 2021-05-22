@@ -725,6 +725,12 @@ module.exports = (io, models) => {
           objectives: []
         });
         KB.stages.push(stage._id);
+        let sortedStages = _.orderBy(KB.stages, ['sort'], ['asc']);
+        for(let k=0; k<sortedStages.length; k++) {
+          let stage = sortedStages[k];
+          stage.sort = k;
+        }
+        KB.stages = sortedStages;
         let event = await models.eventlogModel.create({
           tick: now,
           type: '知識點操作',
@@ -1174,6 +1180,13 @@ module.exports = (io, models) => {
           KB.eventLog.push(event._id);
         }
         await KB.save();
+        io.p2p.emit('setStage', {
+          pmTags: data.stage.pmTags,
+          reviewerTags: data.stage.reviewerTags,
+          vendorTags: data.stage.vendorTags,
+          writerTags: data.stage.writerTags,
+          finalTags: data.stage.finalTags
+        });
         await allChapterListed(data.tag);
         await getStage(savedStage._id, enableBroadcast);
       } else {
@@ -1214,7 +1227,12 @@ module.exports = (io, models) => {
           let stages = await models.stageModel.find({
             KB: KBID
           }).exec();
-          KB.stages = stages;
+          let sortedStages = _.orderBy(stages, ['sort'], ['asc']);
+          for(let k=0; k<sortedStages.length; k++) {
+            let stage = sortedStages[k];
+            stage.sort = k;
+          }
+          KB.stages = sortedStages;
           await KB.save();
           io.p2p.emit('removeStage', true);
           await allChapterListed(data.tag);
@@ -1286,7 +1304,7 @@ module.exports = (io, models) => {
                 modDate: now,
                 current: false,
                 startTick: stage.startTick,
-                name: stage.name,
+                name: "[複製，PM處理中]"+stage.name,
                 dueTick: stage.dueTick,
                 pmTags: data.setting.roles ? stage.pmTags : [],
                 reviewerTags: data.setting.roles ? stage.reviewerTags : [],
@@ -1317,6 +1335,12 @@ module.exports = (io, models) => {
               }
             }
           }
+          let sortedStages = _.orderBy(target.stages, ['sort'], ['asc']);
+          for(let k=0; k<sortedStages.length; k++) {
+            let stage = sortedStages[k];
+            stage.sort = k;
+          }
+          target.stages = sortedStages;
           let event = await models.eventlogModel.create({
             tick: now,
             type: '知識點操作',
@@ -1395,38 +1419,6 @@ module.exports = (io, models) => {
           },
         },
         {
-          $lookup: {
-            from: 'eventlogDB',
-            as: 'eventLog',
-            let: { indicator_id: '$KB' },
-            pipeline: [
-              {
-                $match: {
-                  $expr: { $eq: [ '$eventLog', '$$indicator_id' ] }
-                }
-              },
-              {
-                $sort: {
-                  tick: -1
-                }
-              },
-              {
-                $limit: 5
-              }
-            ]
-          },
-        },
-        { $unwind: { "path": "$eventLog", "preserveNullAndEmptyArrays": true } },
-        {
-          $lookup: {
-            from: 'userDB',
-            localField: 'eventLog.user',
-            foreignField: '_id',
-            as: 'eventLog.user'
-          },
-        },
-        { $unwind: { "path": "$eventLog.user", "preserveNullAndEmptyArrays": true } },
-        {
           $addFields: {
             tempArray: {
               $concatArrays:['$stages.pmTags', '$stages.vendorTags', '$stages.reviewerTags', '$stages.writerTags', '$stages.finalTags']
@@ -1457,9 +1449,6 @@ module.exports = (io, models) => {
             descAtt: { $first: '$descAtt'},
             tag: { $first: '$tag'},
             issues: { $first: '$issues'},
-            eventLog: {
-              $push: '$eventLog'
-            },
             stages: { $first: '$stages'},
             createDate: { $first: '$createDate'},
             modDate: { $first: '$modDate'},
@@ -1477,6 +1466,66 @@ module.exports = (io, models) => {
       io.p2p.emit('listDashBoard', collection);
     }
     return;
+  });
+
+  io.p2p.on('dashBoardEventLog', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      let KBs = _.map(data, (item) => {
+        return new ObjectId(item);
+      });
+      var queryObj = [
+        {
+          $match: {
+            KB: {
+              $in: KBs
+            }
+          }
+        },
+        {
+          $sort: {
+            tick: 1
+          }
+        },
+        {
+          $lookup: {
+            from: 'userDB',
+            localField: 'user',
+            foreignField: '_id',
+            as: 'user'
+          },
+        },
+        { $unwind: { "path": "$user", "preserveNullAndEmptyArrays": true } },
+        {
+          $group: {
+            _id: '$KB',
+            events: {
+              $addToSet:   {
+                _id: "$_id",
+                tick: "$tick",
+                type: "$type",
+                desc: "$desc",
+                KB: "$KB",
+                user: {
+                  _id: "$user._id",
+                  types: "$user.types",
+                  name: "$user.name",
+                  unit: "$user.unit",
+                  email: "$user.email",
+                }
+              }
+            }
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            events: { $slice: ["$events", 3] }
+          }
+        }
+      ]
+      var eventLogs = await models.eventlogModel.aggregate(queryObj);
+      io.p2p.emit('dashBoardEventLog', eventLogs);
+    }
   });
 
   io.p2p.on('dashBoardUnreaded', async (data) => {

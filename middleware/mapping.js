@@ -479,6 +479,12 @@ module.exports = async (models) => {
       authRange: [],
       loginRequire: true
     },
+    dashBoardEventLog: {
+      action: '取得知識點中處理事件的統計',
+      where: '知識點模組',
+      authRange: [],
+      loginRequire: true
+    },
     dashBoardUnreaded: {
       action: '取得知識點中未讀取的Issue統計',
       where: '知識點模組',
