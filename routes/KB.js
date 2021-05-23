@@ -1563,14 +1563,14 @@ module.exports = (io, models) => {
         { $unwind: { "path": "$user", "preserveNullAndEmptyArrays": true } },
         {
           $sort: {
-            tick: 1
+            tick: -1
           }
         },
         {
           $group: {
             _id: '$KB',
             events: {
-              $addToSet:   {
+              $push:   {
                 _id: "$_id",
                 tick: "$tick",
                 type: "$type",
