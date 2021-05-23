@@ -1553,11 +1553,6 @@ module.exports = (io, models) => {
           }
         },
         {
-          $sort: {
-            tick: 1
-          }
-        },
-        {
           $lookup: {
             from: 'userDB',
             localField: 'user',
@@ -1566,6 +1561,11 @@ module.exports = (io, models) => {
           },
         },
         { $unwind: { "path": "$user", "preserveNullAndEmptyArrays": true } },
+        {
+          $sort: {
+            tick: 1
+          }
+        },
         {
           $group: {
             _id: '$KB',
