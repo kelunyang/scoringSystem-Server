@@ -1180,7 +1180,7 @@ module.exports = (io, models) => {
           KB.eventLog.push(event._id);
         }
         await KB.save();
-        io.p2p.emit('setStage', {
+        io.p2p.emit('priviTagUsed', {
           pmTags: data.stage.pmTags,
           reviewerTags: data.stage.reviewerTags,
           vendorTags: data.stage.vendorTags,
@@ -1468,6 +1468,77 @@ module.exports = (io, models) => {
     return;
   });
 
+  io.p2p.on('pointerStageTags', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      let globalSetting = await models.settingModel.findOne({}).exec();
+      let currentUser = new ObjectId(io.p2p.request.session.passport.user);
+      let user =  await models.userModel.findOne({
+        _id: currentUser
+      }).exec();
+      let autherizedTags = _.flatten([globalSetting.settingTags, globalSetting.projectTags]);
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(aTag);
+      })).length > 0;
+      if(tagCheck) {
+        let now = moment().unix();
+        let pointer = data.stagePointer > 0 ? data.stagePointer - 1 : 0;
+        for(let i=0; i<data.KBs.length; i++) {
+          let KBID = data.KBs[i];
+          let KB = await models.KBModel.findOne({
+            _id: new ObjectId(KBID)
+          }).exec();
+          if(KB.stages.length > 0) {
+            let stageID = KB.stages[pointer];
+            let savedStage = await models.stageModel.findOne({
+              _id: new ObjectId(stageID)
+            }).exec();
+            savedStage.pmTags = _.unionWith(savedStage.pmTags, data.pmTags, (sTag, dTag) => {
+              return (new ObjectId(sTag)).equals(new ObjectId(dTag));
+            });
+            savedStage.reviewerTags = _.unionWith(savedStage.reviewerTags, data.reviewerTags, (sTag, dTag) => {
+              return (new ObjectId(sTag)).equals(new ObjectId(dTag));
+            });
+            savedStage.vendorTags = _.unionWith(savedStage.vendorTags, data.vendorTags, (sTag, dTag) => {
+              return (new ObjectId(sTag)).equals(new ObjectId(dTag));
+            });
+            savedStage.writerTags = _.unionWith(savedStage.writerTags, data.writerTags, (sTag, dTag) => {
+              return (new ObjectId(sTag)).equals(new ObjectId(dTag));
+            });
+            savedStage.finalTags = _.unionWith(savedStage.finalTags, data.finalTags, (sTag, dTag) => {
+              return (new ObjectId(sTag)).equals(new ObjectId(dTag));
+            });
+            await savedStage.save();
+            let event = await models.eventlogModel.create({
+              tick: now,
+              type: '知識點操作',
+              desc: '快速指派用戶權限群組',
+              KB: KBID,
+              user: currentUser
+            });
+            KB.eventLog.push(event._id);
+            await KB.save();
+          }
+        }
+        io.p2p.emit('priviTagUsed', {
+          pmTags: data.pmTags,
+          reviewerTags: data.reviewerTags,
+          vendorTags: data.vendorTags,
+          writerTags: data.writerTags,
+          finalTags: data.finalTags
+        });
+        io.p2p.emit('pointerStageTags');
+        await allChapterListed(data.tag);
+      } else {
+        io.p2p.emit('accessViolation', {
+          where: '知識點編輯',
+          tick: moment().unix(),
+          action: '快速指定知識點用戶權限',
+          loginRequire: false
+        });
+      }
+    }
+  });
+
   io.p2p.on('dashBoardEventLog', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       let KBs = _.map(data, (item) => {
@@ -1526,6 +1597,7 @@ module.exports = (io, models) => {
       var eventLogs = await models.eventlogModel.aggregate(queryObj);
       io.p2p.emit('dashBoardEventLog', eventLogs);
     }
+    return;
   });
 
   io.p2p.on('dashBoardUnreaded', async (data) => {
@@ -1574,6 +1646,7 @@ module.exports = (io, models) => {
       ]);
       io.p2p.emit('dashBoardUnreaded', unreadedCount);
     }
+    return;
   });
 
   io.p2p.on('participantStatstics', async (data) => {

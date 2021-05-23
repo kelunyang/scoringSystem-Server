@@ -718,6 +718,12 @@ module.exports = async (models) => {
       where: '知識點模組',
       authRange: _.flatten([setting.settingTags, setting.projectTags]),
       loginRequire: true
+    },
+    pointerStageTags: {
+      action: '快速指派知識點權限標籤',
+      where: '知識點模組',
+      authRange: _.flatten([setting.settingTags, setting.projectTags]),
+      loginRequire: true
     }
   }
 }
