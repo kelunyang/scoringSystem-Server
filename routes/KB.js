@@ -223,53 +223,61 @@ module.exports = (io, models) => {
       }).exec();
       if(mainThread) {
         issueList.push(new ObjectId(mainThread._id));
-      }
-      for(let i=0; i<childThreads.length; i++) {
-        let childThread = childThreads[i];
-        issueList.push(new ObjectId(childThread._id));
-      }
-      let readedList = await models.readedIssueModel.aggregate([
-        {
-          $match: {
-            user: user,
-            issue: {
-              $in: issueList
-            }
-          }
-        },
-        {
-          $project: {
-            issue: 1
-          }
-        },
-        {
-          $group: {
-            _id: null,
-            issues: {
-              $addToSet: '$issue'
-            }
-          }
+        for(let i=0; i<childThreads.length; i++) {
+          let childThread = childThreads[i];
+          issueList.push(new ObjectId(childThread._id));
         }
-      ]);
-      let xorList = [];
-      if(readedList.length > 0) {
-        xorList = _.differenceWith(issueList, readedList[0].issues, (a, b) => {
-          return a.equals(b);
+        let readedList = await models.readedIssueModel.aggregate([
+          {
+            $match: {
+              user: user,
+              issue: {
+                $in: issueList
+              }
+            }
+          },
+          {
+            $project: {
+              issue: 1
+            }
+          },
+          {
+            $group: {
+              _id: null,
+              issues: {
+                $addToSet: '$issue'
+              }
+            }
+          }
+        ]);
+        let xorList = [];
+        if(readedList.length > 0) {
+          xorList = _.differenceWith(issueList, readedList[0].issues, (a, b) => {
+            return a.equals(b);
+          });
+        } else {
+          xorList = issueList;
+        }
+        let newReadeds = [];
+        for(let i=0; i< xorList.length; i++) {
+          let xor = xorList[i];
+          newReadeds.push({
+            user: user,
+            issue: xor,
+            tick: now
+          });
+        }
+        await models.readedIssueModel.insertMany(newReadeds);
+        io.p2p.emit('setReadedIssue', {
+          id: mainThread._id,
+          numberOfIssues: newReadeds.length
         });
       } else {
-        xorList = issueList;
-      }
-      let newReadeds = [];
-      for(let i=0; i< xorList.length; i++) {
-        let xor = xorList[i];
-        newReadeds.push({
-          user: user,
-          issue: xor,
-          tick: now
+        io.p2p.emit('setReadedIssue', {
+          id: undefined,
+          numberOfIssues: 0
         });
       }
-      await models.readedIssueModel.insertMany(newReadeds);
-      await getReadedIssues();
     }
     return;
   });
