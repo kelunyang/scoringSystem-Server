@@ -264,7 +264,7 @@ module.exports = (io, models) => {
           return !att._id.equals(data.fileID);
         });
         await KB.save();
-        io.p2p.emit('getKBVersions', KB.versions);
+        io.p2p.emit('deleteKBVersion', true);
       } catch(err) {
         console.dir(err);
         io.p2p.emit('KBVersionDeleteError', JSON.stringify(err)); 

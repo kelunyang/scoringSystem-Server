@@ -41,6 +41,8 @@ const stageModel = require('./models/stageModel')(mongoose);
 const objectiveModel = require('./models/objectiveModel')(mongoose);
 const readedIssueModel = require('./models/readedIssueModel')(mongoose);
 const statisticsKBModel = require('./models/statisticsKBModel')(mongoose);
+const readedVersionModel = require('./models/readedVersionModel')(mongoose);
+const notifytemplateModel = require('./models/notifytemplateModel')(mongoose);
 const modelList = {
     messageModel: systemmessageModel,
     logModel: logModel,
@@ -62,7 +64,9 @@ const modelList = {
     chapterModel: chapterModel,
     objectiveModel: objectiveModel,
     readedIssueModel: readedIssueModel,
-    statisticsKBModel: statisticsKBModel
+    statisticsKBModel: statisticsKBModel,
+    readedVersionModel: readedVersionModel,
+    notifytemplateModel: notifytemplateModel
 };
 
 //掛載socketio, 啟動express

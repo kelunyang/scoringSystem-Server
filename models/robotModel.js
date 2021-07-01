@@ -21,15 +21,30 @@ module.exports = function (mongoose) {
         robotDeadLine: Number,
         reportDuration: Number,
         patrolHour: Number,
-        LastPatrol: Number,
-        LastDBbackup: Number,
-        LastBackup: Number,
         backupLocation: String,
+        backupCopies: Number,
         dbbackupLocation: String,
         backupDuration: Number,
         dbbackupDuration: Number,
         dbbackupCopies: Number,
-        tick: Number
+        tick: Number,
+        converisionTick: Number,
+        converisionLocation: String,
+        backupHour: Number,
+        notifyHour: Number,
+        converisionDropzoneA: String,
+        converisionDropzoneB: String,
+        originalVideos: String,
+        converisionFailTag: [
+            {
+                type: ObjectID,
+                ref: "tagModel"
+            }
+        ],
+        converisionHeight: Number,
+        converisionWidth: Number,
+        converisionAudio: Boolean,
+        converisionDuration: Number
     }, { collection: 'robotSettings' });
     return mongoose.model('robotModel', robotSchema);
 }

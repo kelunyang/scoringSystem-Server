@@ -1465,8 +1465,7 @@ module.exports = (io, models) => {
             user: { $first: '$user'},
             desc: { $first: '$desc'},
             textbook: { $first: '$textbook'},
-            chapter: { $first: '$chapter'},
-            versions: { $first: '$versions'}
+            chapter: { $first: '$chapter'}
           }
         }
       ];
@@ -2144,6 +2143,137 @@ module.exports = (io, models) => {
         proceedKBs: acceptedKBs,
         proceedUsers: participantsIDs
       });
+    }
+    return;
+  });
+
+  io.p2p.on('setreadedVersion', async(data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      let uid = new ObjectId(io.p2p.request.session.passport.user);
+      let KBID = new ObjectId(data);
+      let now = moment().unix();
+      let readedVersion = await models.readedVersionModel.find({
+        user: uid,
+        KBID: KBID
+      }).exec();
+      let versionList = await models.KBModel.aggregate([
+        {
+          $match: {
+            _id: KBID
+          }
+        },
+        {
+          $lookup: {
+            from: 'fileDB',
+            localField: 'versions',
+            foreignField: '_id',
+            as: 'versions'
+          }
+        },
+        {
+          $unwind: {
+            path: '$versions',
+            preserveNullAndEmptyArrays: false
+          }
+        },
+        {
+          $match: {
+            'versions._id': {
+              $nin: readedVersion
+            }
+          }
+        },
+        {
+          $group: {
+            _id: '$_id',
+            versions: {
+              $addToSet: '$versions._id'
+            }
+          }
+        }
+      ]);
+      let userReadeds = _.map(readedVersion, 'version');
+      let xorList = [];
+      if(userReadeds.length > 0) {
+        xorList = _.differenceWith(versionList[0].versions, userReadeds, (a, b) => {
+          return a.equals(b);
+        });
+      } else {
+        xorList = versionList[0].versions;
+      }
+      let newReadeds = [];
+      for(let i=0; i< xorList.length; i++) {
+        let xor = xorList[i];
+        newReadeds.push({
+          user: uid,
+          version: xor,
+          KBID: KBID,
+          tick: now
+        });
+      }
+      await models.readedVersionModel.insertMany(newReadeds);
+    }
+  });
+
+  io.p2p.on('dashboardUnreadedVersions', async(data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      let userID = new ObjectId(io.p2p.request.session.passport.user);
+      let KBs = _.map(data, (item) => {
+        return new ObjectId(item);
+      });
+      let readedVersions = await models.readedVersionModel.aggregate([
+        {
+          $match: {
+            user: userID
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            versions: { $push: '$version' }
+          }
+        }
+      ]);
+      let readed = readedVersions.length > 0 ? readedVersions[0].versions : [];
+      let unreadedCount = await models.KBModel.aggregate([
+        {
+          $match: {
+            _id: {
+              $in: KBs
+            }
+          }
+        },
+        {
+          $lookup: {
+            from: 'fileDB',
+            localField: 'versions',
+            foreignField: '_id',
+            as: 'versions'
+          }
+        },
+        {
+          $unwind: {
+            path: '$versions',
+            preserveNullAndEmptyArrays: false
+          }
+        },
+        {
+          $match: {
+            'versions._id': {
+              $nin: readed
+            }
+          }
+        },
+        {
+          $group: {
+            _id: '$_id',
+            versions: {
+              $addToSet: '$versions._id'
+            }
+          }
+        }
+      ]);
+      io.p2p.emit('dashboardUnreadedVersions', unreadedCount);
     }
     return;
   });

@@ -491,6 +491,18 @@ module.exports = async (models) => {
       authRange: [],
       loginRequire: true
     },
+    dashboardUnreadedVersions: {
+      action: '取得知識點中未讀取的版本檔案統計',
+      where: '知識點模組',
+      authRange: [],
+      loginRequire: true
+    },
+    setreadedVersion: {
+      action: '將知識點版本標記為已讀取',
+      where: '知識點模組',
+      authRange: [],
+      loginRequire: true
+    },
     listDashBoard: {
       action: '取得使用者歸屬的知識點',
       where: '知識點模組',
@@ -724,6 +736,42 @@ module.exports = async (models) => {
       where: '知識點模組',
       authRange: _.flatten([setting.settingTags, setting.projectTags]),
       loginRequire: true
-    }
+    },
+    checkFFmpeg: {
+      action: '檢查ffmpeg轉檔機器人狀態',
+      where: '設定模組',
+      authRange: setting.settingTags,
+      loginRequire: true
+    },
+    addNTemplate: {
+      action: '新增通知機器人文字範本',
+      where: '訊息模組',
+      authRange: setting.settingTags,
+      loginRequire: true
+    },
+    modNTemplate: {
+      action: '修改通知機器人文字範本',
+      where: '訊息模組',
+      authRange: setting.settingTags,
+      loginRequire: true
+    },
+    removeNTemplate: {
+      action: '刪除通知機器人文字範本',
+      where: '訊息模組',
+      authRange: setting.settingTags,
+      loginRequire: true
+    },
+    listNTemplate: {
+      action: '列出通知機器人文字範本',
+      where: '訊息模組',
+      authRange: setting.settingTags,
+      loginRequire: true
+    },
+    listRobotLog: {
+      action: '列出通知機器人執行紀錄',
+      where: '設定模組',
+      authRange: setting.settingTags,
+      loginRequire: true
+    },
   }
 }

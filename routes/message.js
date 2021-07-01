@@ -5,8 +5,17 @@ const { ObjectId } = require('mongodb');
 const fs = require('fs-extra');
 const axios = require('axios');
 const qs = require('qs');
+const _ = require('lodash');
 
 module.exports = (io, models) => {
+  
+  let getNtemplates = async() => {
+    let templates = await models.notifytemplateModel.find()
+                    .populate('editor', '-password -lineToken -lineCode')
+                    .populate('creator', '-password -lineToken -lineCode').exec();
+    io.p2p.emit('listNTemplate', templates);
+  };
+
   io.p2p.on('incommingChat', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       let userId = new ObjectId(io.p2p.request.session.passport.user);
@@ -303,6 +312,70 @@ module.exports = (io, models) => {
         user: io.p2p.request.session.passport.user
       });
       io.p2p.emit('addMsg', msg._id);
+    }
+  });
+
+  io.p2p.on('addNTemplate', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      let now = moment().unix();
+      let user = new ObjectId(io.p2p.request.session.passport.user);
+      var template = await models.notifytemplateModel.create({ 
+        createTick: now,
+        modTick: now,
+        title: '',
+        body: '',
+        sendTick: 0,
+        group: [],
+        creator: user,
+        editor: user,
+        setTick: 0,
+        durationDay: 1,
+        status: false
+      });
+      io.p2p.emit('addNTemplate', template._id);
+      await getNtemplates();
+    }
+  });
+
+  io.p2p.on('modNTemplate', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      let now = moment().unix();
+      let group = _.map(data.group, (item) => {
+        return new ObjectId(item);
+      });
+      let user = new ObjectId(io.p2p.request.session.passport.user);
+      var template = await models.notifytemplateModel.findOne({
+                        _id: new ObjectId(data._id)
+                      }).exec();
+      if(template !== null) {
+        template.modTick = now;
+        template.title = data.title;
+        template.body =  data.body;
+        template.group = group;
+        template.editor = user;
+        template.status = data.status;
+        template.durationDay = data.durationDay;
+        template.setTick = data.setTick;
+        await template.save();
+      };
+      io.p2p.emit('modNTemplate', template._id);
+      await getNtemplates();
+    }
+  });
+
+  io.p2p.on('removeNTemplate', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      var template = await models.notifytemplateModel.deleteOne({
+          _id: new ObjectId(data)
+        }).exec();
+      io.p2p.emit('removeNTemplate');
+      await getNtemplates();
+    }
+  });
+
+  io.p2p.on('listNTemplate', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      await getNtemplates();
     }
   });
 

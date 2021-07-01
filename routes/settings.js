@@ -11,72 +11,84 @@ let v2ray = null;
 module.exports = (io, models) => {
   io.p2p.on('getsiteSetting', async (data) => {
     let globalSetting = await models.settingModel.findOne({}).exec();
+    let robotSettings = await models.robotModel.findOne({}).exec();
     io.p2p.emit('getsiteSetting', {
       siteLocation: globalSetting.siteLocation,
       versionBackend: globalSetting.versionBackend,
       versionFrontend: globalSetting.versionFrontend,
       userCheckTime: globalSetting.userCheckTime,
-      connectionTimeout: globalSetting.connectionTimeout
-    });
-    return;
-  });
-
-  io.p2p.on('startV2ray', async (data) => {
-    var pgrep = spawn('ps',   ['-C', 'v2ray']);
-    pgrep.stderr.on('data',function(data) {
-      console.dir(data);
-    });
-    pgrep.stdout.on('data',function(data) {
-      let result = data.toString('utf8');
-      if(result.indexOf('v2ray') === -1) {
-        v2ray = spawn('/usr/bin/v2ray', ['-config','/etc/v2ray/config.json'], {detached:true});
-        v2ray.stderr.on('data',function(data) {
-          io.p2p.emit('v2rayReport', '發生錯誤：' + data);
-        });
-
-        v2ray.stdout.on('data',function(data) {
-          let result = data.toString('utf8');
-          io.p2p.emit('v2rayReport', result.replace('\n', ''));
-        });
-
-        v2ray.on('exit', (code) => {
-          io.p2p.emit('v2rayReport', 'v2ray已結束！');
-        });
+      connectionTimeout: globalSetting.connectionTimeout,
+      validFormat: {
+        validWidth: robotSettings.converisionWidth,
+        validHeight: robotSettings.converisionHeight,
+        withAudio: robotSettings.converisionAudio
       }
     });
     return;
   });
 
-  io.p2p.on('stopV2ray', async (data) => {
-    if(v2ray !== null) {
-      v2ray.stdin.pause();
-      v2ray.kill();
-    } else {
-      var pgrep = spawn('killall',   ['v2ray']);
+  io.p2p.on('startV2ray', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      var pgrep = spawn('ps',   ['-C', 'v2ray']);
       pgrep.stderr.on('data',function(data) {
         console.dir(data);
+      });
+      pgrep.stdout.on('data',function(data) {
+        let result = data.toString('utf8');
+        if(result.indexOf('v2ray') === -1) {
+          v2ray = spawn('/usr/bin/v2ray', ['-config','/etc/v2ray/config.json'], {detached:true});
+          v2ray.stderr.on('data',function(data) {
+            io.p2p.emit('v2rayReport', '發生錯誤：' + data);
+          });
+
+          v2ray.stdout.on('data',function(data) {
+            let result = data.toString('utf8');
+            io.p2p.emit('v2rayReport', result.replace('\n', ''));
+          });
+
+          v2ray.on('exit', (code) => {
+            io.p2p.emit('v2rayReport', 'v2ray已結束！');
+          });
+        }
       });
     }
     return;
   });
 
+  io.p2p.on('stopV2ray', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if(v2ray !== null) {
+        v2ray.stdin.pause();
+        v2ray.kill();
+      } else {
+        var pgrep = spawn('killall',   ['v2ray']);
+        pgrep.stderr.on('data',function(data) {
+          console.dir(data);
+        });
+      }
+    }
+    return;
+  });
+
   io.p2p.on('checkV2ray', async (data) => {
-    var pgrep = spawn('ps',   ['-C', 'v2ray']);
-    pgrep.stderr.on('data',function(data) {
-      console.dir(data);
-    });
-    pgrep.stdout.on('data',function(data) {
-      let result = data.toString('utf8');
-      io.p2p.emit('checkV2ray', result.indexOf('v2ray'));
-    });
-    var dig = spawn('dig',   ['+short', 'myip.opendns.com', '@resolver1.opendns.com']);
-    dig.stderr.on('data',function(data) {
-      console.dir(data);
-    });
-    dig.stdout.on('data',function(data) {
-      let result = data.toString('utf8');
-      io.p2p.emit('getserverADDR', result);
-    });
+    if(io.p2p.request.session.status.type === 3) {
+      var pgrep = spawn('ps',   ['-C', 'v2ray']);
+      pgrep.stderr.on('data',function(data) {
+        console.dir(data);
+      });
+      pgrep.stdout.on('data',function(data) {
+        let result = data.toString('utf8');
+        io.p2p.emit('checkV2ray', result.indexOf('v2ray'));
+      });
+      var dig = spawn('dig',   ['+short', 'myip.opendns.com', '@resolver1.opendns.com']);
+      dig.stderr.on('data',function(data) {
+        console.dir(data);
+      });
+      dig.stdout.on('data',function(data) {
+        let result = data.toString('utf8');
+        io.p2p.emit('getserverADDR', result);
+      });
+    }
     return;
   });
 
@@ -146,6 +158,18 @@ module.exports = (io, models) => {
     return;
   });
 
+  io.p2p.on('listRobotLog', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      let logs = await models.logModel.find({
+        where: new RegExp(data, "g")
+      }).sort({
+        tick: -1
+      }).limit(10).exec();
+      io.p2p.emit('listRobotLog', logs);
+    }
+    return;
+  });
+
   io.p2p.on('getProjectSetting', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       let projectSetting = await models.projectModel.findOne({}).exec();
@@ -153,7 +177,26 @@ module.exports = (io, models) => {
     }
     return;
   });
-  
+
+  io.p2p.on('checkFFmpeg', async (data) => {
+    var pgrep = spawn('ps',   ['-C', 'ffmpeg']);
+    pgrep.stderr.on('data',function(data) {
+      console.dir(data);
+    });
+    pgrep.stdout.on('data',async function(data) {
+      let result = data.toString('utf8');
+      if(result.indexOf('ffmpeg') === 1) {
+        let rSetting = await models.robotModel.findOne({}).exec();
+        if(rSetting.converisionTick > 0) {
+          io.p2p.emit('checkFFmpeg', true);
+          return;
+        }
+      }
+      io.p2p.emit('checkFFmpeg', false);
+    });
+    return;
+  });
+
   io.p2p.on('setSetting', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       let gSetting = await models.settingModel.findOne({}).exec();
@@ -190,9 +233,22 @@ module.exports = (io, models) => {
       rSetting.mailSSL = data.mailSSL;
       rSetting.backupLocation = data.backupLocation;
       rSetting.dbbackupLocation = data.dbbackupLocation;
-      rSetting.backupDuration = data.backupPeroid;
-      rSetting.dbbackupPeroid = data.dbbackupPeroid;
+      rSetting.backupDuration = data.backupDuration;
+      rSetting.dbbackupDuration = data.dbbackupDuration;
       rSetting.dbbackupCopies = data.dbbackupCopies;
+      rSetting.backupCopies = data.backupCopies;
+      rSetting.backupHour = data.backupHour;
+      rSetting.notifyHour = data.notifyHour;
+      rSetting.converisionDropzoneA = data.converisionDropzoneA;
+      rSetting.converisionDropzoneB = data.converisionDropzoneB;
+      rSetting.originalVideos = data.originalVideos;
+      rSetting.converisionLocation = data.converisionLocation;
+      rSetting.converisionTick = data.converisionTick;
+      rSetting.converisionFailTag = data.converisionFailTag;
+      rSetting.converisionHeight = data.converisionHeight;
+      rSetting.converisionWidth = data.converisionWidth;
+      rSetting.converisionAudio = data.converisionAudio;
+      rSetting.converisionDuration = data.converisionDuration;
       await rSetting.save();
       io.p2p.emit('setSetting', true);
       let robotSetting = await models.robotModel.findOne({}).exec();
