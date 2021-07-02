@@ -41,13 +41,16 @@ module.exports = function (mongoose) {
     githubKey: String,
     backendRepo: String,
     frontendRepo: String,
+    botRepo: String,
     siteLocation: String,
     versionBackend: String,
     versionFrontend: String,
+    versionBot: String,
     storageLocation: String,
     userCheckTime: Number,
     tick: Number,
-    connectionTimeout: Number
+    connectionTimeout: Number,
+    systemName: String
   }, { collection: 'globalSettings' });
   return mongoose.model('globalModel', globalSettingSchema);
 }

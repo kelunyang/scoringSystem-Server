@@ -689,14 +689,8 @@ module.exports = async (models) => {
       authRange: [],
       loginRequire: true
     },
-    getGithubBackendCommit: {
-      action: '取得最新Github上的後端Commit',
-      where: '設定模組',
-      authRange: [],
-      loginRequire: true
-    },
-    getGithubFrontendCommit: {
-      action: '取得最新Github上的前端Commit',
+    getGithubCommit: {
+      action: '取得最新Github上的Commit',
       where: '設定模組',
       authRange: [],
       loginRequire: true

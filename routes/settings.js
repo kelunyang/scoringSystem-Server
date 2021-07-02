@@ -14,15 +14,24 @@ module.exports = (io, models) => {
     let robotSettings = await models.robotModel.findOne({}).exec();
     io.p2p.emit('getsiteSetting', {
       siteLocation: globalSetting.siteLocation,
-      versionBackend: globalSetting.versionBackend,
-      versionFrontend: globalSetting.versionFrontend,
+      version: {
+        backend: globalSetting.versionBackend,
+        frontend: globalSetting.versionFrontend,
+        bot: globalSetting.versionBot
+      },
+      repos: {
+        backend: globalSetting.backendRepo,
+        frontend: globalSetting.frontendRepo,
+        bot: globalSetting.botRepo
+      },
       userCheckTime: globalSetting.userCheckTime,
       connectionTimeout: globalSetting.connectionTimeout,
       validFormat: {
         validWidth: robotSettings.converisionWidth,
         validHeight: robotSettings.converisionHeight,
         withAudio: robotSettings.converisionAudio
-      }
+      },
+      systemName: globalSetting.systemName
     });
     return;
   });
@@ -92,11 +101,11 @@ module.exports = (io, models) => {
     return;
   });
 
-  io.p2p.on('getGithubFrontendCommit', async (data) => {
+  io.p2p.on('getGithubCommit', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       let commits = [];
       let globalSetting = await models.settingModel.findOne({}).exec();
-      let githubCommits = await axios.get('https://api.github.com/repos/' + globalSetting.frontendRepo + '/commits',{
+      let githubCommits = await axios.get('https://api.github.com/repos/' + data + '/commits',{
         headers: {
           'Authorization': `token ${globalSetting.githubKey}`
         }
@@ -112,32 +121,10 @@ module.exports = (io, models) => {
           }
         });
       }
-      io.p2p.emit('getGithubFrontendCommit', commits);
-    }
-    return;
-  });
-
-  io.p2p.on('getGithubBackendCommit', async (data) => {
-    if(io.p2p.request.session.status.type === 3) {
-      let commits = [];
-      let globalSetting = await models.settingModel.findOne({}).exec();
-      let githubCommits = await axios.get('https://api.github.com/repos/' + globalSetting.backendRepo + '/commits',{
-        headers: {
-          'Authorization': `token ${globalSetting.githubKey}`
-        }
+      io.p2p.emit('getGithubCommit', {
+        repo: data,
+        commits: commits
       });
-      if('data' in githubCommits) {
-        commits = _.map(githubCommits.data.slice(0, 5), (gCommit) => {
-          return {
-            id: gCommit.sha,
-            message: gCommit.commit.message,
-            committerName: gCommit.commit.committer.name,
-            committerEmail: gCommit.commit.committer.email,
-            commitDate: gCommit.commit.committer.date
-          }
-        });
-      }
-      io.p2p.emit('getGithubBackendCommit', commits);
     }
     return;
   });
@@ -210,13 +197,16 @@ module.exports = (io, models) => {
       gSetting.siteLocation = data.siteLocation;
       gSetting.versionBackend = data.versionBackend;
       gSetting.versionFrontend = data.versionFrontend;
+      gSetting.versionBot = data.versionBot;
       gSetting.userCheckTime = data.userCheckTime;
       gSetting.connectionTimeout = data.connectionTimeout;
       gSetting.githubKey = data.githubKey;
       gSetting.frontendRepo = data.frontendRepo;
       gSetting.backendRepo = data.backendRepo;
+      gSetting.botRepo = data.botRepo;
       gSetting.storageLocation = data.storageLocation;
       gSetting.tick = moment().unix();
+      gSetting.systemName = data.systemName;
       await gSetting.save();
       let rSetting = await models.robotModel.findOne({}).exec();
       rSetting.mailAccount = data.mailAccount;
