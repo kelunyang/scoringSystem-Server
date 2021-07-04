@@ -2194,24 +2194,26 @@ module.exports = (io, models) => {
       ]);
       let userReadeds = _.map(readedVersion, 'version');
       let xorList = [];
-      if(userReadeds.length > 0) {
-        xorList = _.differenceWith(versionList[0].versions, userReadeds, (a, b) => {
-          return a.equals(b);
-        });
-      } else {
-        xorList = versionList[0].versions;
+      if(versionList.length > 0) {
+        if(userReadeds.length > 0) {
+          xorList = _.differenceWith(versionList[0].versions, userReadeds, (a, b) => {
+            return a.equals(b);
+          });
+        } else {
+          xorList = versionList[0].versions;
+        }
+        let newReadeds = [];
+        for(let i=0; i< xorList.length; i++) {
+          let xor = xorList[i];
+          newReadeds.push({
+            user: uid,
+            version: xor,
+            KBID: KBID,
+            tick: now
+          });
+        }
+        await models.readedVersionModel.insertMany(newReadeds);
       }
-      let newReadeds = [];
-      for(let i=0; i< xorList.length; i++) {
-        let xor = xorList[i];
-        newReadeds.push({
-          user: uid,
-          version: xor,
-          KBID: KBID,
-          tick: now
-        });
-      }
-      await models.readedVersionModel.insertMany(newReadeds);
     }
   });
 
