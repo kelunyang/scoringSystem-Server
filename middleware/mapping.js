@@ -767,5 +767,11 @@ module.exports = async (models) => {
       authRange: setting.settingTags,
       loginRequire: true
     },
+    fetchStorage: {
+      action: 'iOS裝置專用下載API',
+      where: '知識點模組',
+      authRange: [],
+      loginRequire: true
+    },
   }
 }

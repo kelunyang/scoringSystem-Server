@@ -4,7 +4,7 @@ const _ = require('lodash');
 
 module.exports = (models) => {
     return async (req, res, next) => {
-        //console.log("http event:" + req.path);
+        console.log("http event:" + req.path);
         const reqLocation = req.path.replace('/', '');
         const authMapping = await require('./mapping')(models);
         let action = authMapping[reqLocation];
