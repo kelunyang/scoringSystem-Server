@@ -44,7 +44,11 @@ module.exports = function (mongoose) {
         converisionHeight: Number,
         converisionWidth: Number,
         converisionAudio: Boolean,
-        converisionDuration: Number
+        converisionDuration: Number,
+        converisionDurationLimit: [
+            Number
+        ],
+        enableConverision: Boolean
     }, { collection: 'robotSettings' });
     return mongoose.model('robotModel', robotSchema);
 }

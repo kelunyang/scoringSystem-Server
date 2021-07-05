@@ -29,7 +29,8 @@ module.exports = (io, models) => {
       validFormat: {
         validWidth: robotSettings.converisionWidth,
         validHeight: robotSettings.converisionHeight,
-        withAudio: robotSettings.converisionAudio
+        withAudio: robotSettings.converisionAudio,
+        validRange: robotSettings.converisionDurationLimit
       },
       systemName: globalSetting.systemName
     });
@@ -239,6 +240,8 @@ module.exports = (io, models) => {
       rSetting.converisionWidth = data.converisionWidth;
       rSetting.converisionAudio = data.converisionAudio;
       rSetting.converisionDuration = data.converisionDuration;
+      rSetting.enableConverision = data.enableConverision;
+      rSetting.converisionDurationLimit = data.converisionDurationLimit;
       await rSetting.save();
       io.p2p.emit('setSetting', true);
       let robotSetting = await models.robotModel.findOne({}).exec();
