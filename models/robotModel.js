@@ -48,7 +48,8 @@ module.exports = function (mongoose) {
         converisionDurationLimit: [
             Number
         ],
-        enableConverision: Boolean
+        enableConverision: Boolean,
+        failedRecheck: Boolean
     }, { collection: 'robotSettings' });
     return mongoose.model('robotModel', robotSchema);
 }

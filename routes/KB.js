@@ -365,6 +365,7 @@ module.exports = (io, models) => {
       let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
         return uTag.equals(aTag);
       })).length > 0;
+      let sortCount = 0;
       if(tagCheck) {
         let now = moment().unix();
         for(let i=0; i<data.DB.length; i++) {
@@ -377,11 +378,12 @@ module.exports = (io, models) => {
           chapter.KBs = ch.KBs;
           await chapter.save();
           for(let k=0; k<ch.KBs.length; k++) {
+            sortCount++;
             let ck = ch.KBs[k];
             let KB = await models.KBModel.findOne({
               _id: new ObjectId(ck._id)
             }).exec();
-            KB.sort = k;
+            KB.sort = sortCount;
             KB.chapter = new ObjectId(ch._id);
             KB.modDate = now;
             let event = await models.eventlogModel.create({
@@ -1514,6 +1516,18 @@ module.exports = (io, models) => {
             savedStage.finalTags = _.unionWith(savedStage.finalTags, data.finalTags, (sTag, dTag) => {
               return (new ObjectId(sTag)).equals(new ObjectId(dTag));
             });
+            if(data.objectives.length > 0) {
+              for(let m=0; m<data.objectives.length; m++) {
+                let objItem = data.objectives[m];
+                let obj = await models.objectiveModel.create({
+                  tick: now,
+                  name: objItem.text,
+                  KB: KB._id,
+                  stage: savedStage._id
+                });
+                savedStage.objectives.push(obj._id);
+              }
+            }
             await savedStage.save();
             let event = await models.eventlogModel.create({
               tick: now,

@@ -242,6 +242,7 @@ module.exports = (io, models) => {
       rSetting.converisionDuration = data.converisionDuration;
       rSetting.enableConverision = data.enableConverision;
       rSetting.converisionDurationLimit = data.converisionDurationLimit;
+      rSetting.failedRecheck = data.failedRecheck;
       await rSetting.save();
       io.p2p.emit('setSetting', true);
       let robotSetting = await models.robotModel.findOne({}).exec();
