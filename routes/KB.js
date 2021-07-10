@@ -1928,14 +1928,16 @@ module.exports = (io, models) => {
               },
               {
                 $addFields: {
-                  KBtitle: '$KB.title'
+                  KBtitle: '$KB.title',
+                  KBID: '$KB._id'
                 }
               },
               {
                 $project: {
                   _id: 1,
                   KBtitle: 1,
-                  name: 1
+                  name: 1,
+                  KBID: 1
                 }
               }
             ],
@@ -1977,14 +1979,16 @@ module.exports = (io, models) => {
               },
               {
                 $addFields: {
-                  KBtitle: '$KB.title'
+                  KBtitle: '$KB.title',
+                  KBID: '$KB._id'
                 }
               },
               {
                 $project: {
                   _id: 1,
                   KBtitle: 1,
-                  name: 1
+                  name: 1,
+                  KBID: 1
                 }
               }
             ],
@@ -2026,14 +2030,16 @@ module.exports = (io, models) => {
               },
               {
                 $addFields: {
-                  KBtitle: '$KB.title'
+                  KBtitle: '$KB.title',
+                  KBID: '$KB._id'
                 }
               },
               {
                 $project: {
                   _id: 1,
                   KBtitle: 1,
-                  name: 1
+                  name: 1,
+                  KBID: 1
                 }
               }
             ],
@@ -2075,14 +2081,16 @@ module.exports = (io, models) => {
               },
               {
                 $addFields: {
-                  KBtitle: '$KB.title'
+                  KBtitle: '$KB.title',
+                  KBID: '$KB._id'
                 }
               },
               {
                 $project: {
                   _id: 1,
                   KBtitle: 1,
-                  name: 1
+                  name: 1,
+                  KBID: 1
                 }
               }
             ],
@@ -2124,14 +2132,16 @@ module.exports = (io, models) => {
               },
               {
                 $addFields: {
-                  KBtitle: '$KB.title'
+                  KBtitle: '$KB.title',
+                  KBID: '$KB._id'
                 }
               },
               {
                 $project: {
                   _id: 1,
                   KBtitle: 1,
-                  name: 1
+                  name: 1,
+                  KBID: 1
                 }
               }
             ],
