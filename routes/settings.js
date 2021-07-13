@@ -3,6 +3,7 @@ let router = express.Router();
 let moment = require('moment');
 let axios = require('axios');
 let qs = require('qs');
+let os = require('os');
 let _ = require('lodash');
 const { ObjectId } = require('mongodb');
 const { spawn } = require("child_process");
@@ -45,7 +46,7 @@ module.exports = (io, models) => {
       });
       pgrep.stdout.on('data',function(data) {
         let result = data.toString('utf8');
-        if(result.indexOf('v2ray') === -1) {
+        if(!/v2ray/g.test(result)) {
           v2ray = spawn('/usr/bin/v2ray', ['-config','/etc/v2ray/config.json'], {detached:true});
           v2ray.stderr.on('data',function(data) {
             io.p2p.emit('v2rayReport', '發生錯誤：' + data);
@@ -88,7 +89,7 @@ module.exports = (io, models) => {
       });
       pgrep.stdout.on('data',function(data) {
         let result = data.toString('utf8');
-        io.p2p.emit('checkV2ray', result.indexOf('v2ray'));
+        io.p2p.emit('checkV2ray', /v2ray/g.test(result));
       });
       var dig = spawn('dig',   ['+short', 'myip.opendns.com', '@resolver1.opendns.com']);
       dig.stderr.on('data',function(data) {
@@ -138,6 +139,43 @@ module.exports = (io, models) => {
     return;
   });
 
+  io.p2p.on('checkbotVM', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      let now = moment().unix();
+      let robotSetting = await models.robotModel.findOne({}).exec();
+      let ffmpegbotOn = false;
+      let ffmpegbotOff = false;
+      if(robotSetting.vmStatus.ffmpegStatus) {
+        let lastConverision = await models.logModel.findOne({
+          where: "轉檔機器人",
+          action: '啟動'
+        }).sort({ tick: -1 }).exec();
+        lastConverision =  lastConverision === null ? 0 : lastConverision.tick;
+        ffmpegbotOn = _.inRange(now, lastConverision, lastConverision + 60) || now === lastConverision + 60;
+      }
+      if(!robotSetting.vmStatus.ffmpegStatus) {
+        let lastConverision = await models.logModel.findOne({
+          where: "轉檔機器人",
+          action: '結束'
+        }).sort({ tick: -1 }).exec();
+        lastConverision =  lastConverision === null ? 0 : lastConverision.tick;
+        ffmpegbotOff = _.inRange(now, lastConverision, lastConverision + 60) || now === lastConverision + 60;
+      }
+      io.p2p.emit('checkbotVM', {
+        ffmpegOn: ffmpegbotOn,
+        ffmpegOff: ffmpegbotOff,
+        ffmpegStatus: robotSetting.vmStatus.ffmpegStatus,
+        ramStatus: robotSetting.vmStatus.ramStatus,
+        reportTick: robotSetting.vmStatus.reportTick,
+        cpuStatus: robotSetting.vmStatus.cpuStatus,
+        totalStorage: robotSetting.vmStatus.totalStorage,
+        totalRAM: robotSetting.vmStatus.totalRAM,
+        storageStatus: robotSetting.vmStatus.storageStatus
+      });
+    }
+    return;
+  });
+
   io.p2p.on('getRobotSetting', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       let robotSetting = await models.robotModel.findOne({}).exec();
@@ -163,25 +201,6 @@ module.exports = (io, models) => {
       let projectSetting = await models.projectModel.findOne({}).exec();
       io.p2p.emit('getProjectSetting', projectSetting);
     }
-    return;
-  });
-
-  io.p2p.on('checkFFmpeg', async (data) => {
-    var pgrep = spawn('ps',   ['-C', 'ffmpeg']);
-    pgrep.stderr.on('data',function(data) {
-      console.dir(data);
-    });
-    pgrep.stdout.on('data',async function(data) {
-      let result = data.toString('utf8');
-      if(result.indexOf('ffmpeg') === 1) {
-        let rSetting = await models.robotModel.findOne({}).exec();
-        if(rSetting.converisionTick > 0) {
-          io.p2p.emit('checkFFmpeg', true);
-          return;
-        }
-      }
-      io.p2p.emit('checkFFmpeg', false);
-    });
     return;
   });
 
@@ -220,7 +239,9 @@ module.exports = (io, models) => {
       rSetting.reportDuration = data.reportDuration;
       rSetting.mailSMTP = data.mailSMTP;
       rSetting.mailPort = data.mailPort;
+      rSetting.parallelRAM = data.parallelRAM;
       rSetting.patrolHour = data.patrolHour;
+      rSetting.patrolTimes = data.patrolTimes;
       rSetting.mailSSL = data.mailSSL;
       rSetting.backupLocation = data.backupLocation;
       rSetting.dbbackupLocation = data.dbbackupLocation;
@@ -234,7 +255,6 @@ module.exports = (io, models) => {
       rSetting.converisionDropzoneB = data.converisionDropzoneB;
       rSetting.originalVideos = data.originalVideos;
       rSetting.converisionLocation = data.converisionLocation;
-      rSetting.converisionTick = data.converisionTick;
       rSetting.converisionFailTag = data.converisionFailTag;
       rSetting.converisionHeight = data.converisionHeight;
       rSetting.converisionWidth = data.converisionWidth;

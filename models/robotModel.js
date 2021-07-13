@@ -21,6 +21,7 @@ module.exports = function (mongoose) {
         robotDeadLine: Number,
         reportDuration: Number,
         patrolHour: Number,
+        patrolTimes: Number,
         backupLocation: String,
         backupCopies: Number,
         dbbackupLocation: String,
@@ -28,7 +29,6 @@ module.exports = function (mongoose) {
         dbbackupDuration: Number,
         dbbackupCopies: Number,
         tick: Number,
-        converisionTick: Number,
         converisionLocation: String,
         backupHour: Number,
         notifyHour: Number,
@@ -49,7 +49,17 @@ module.exports = function (mongoose) {
             Number
         ],
         enableConverision: Boolean,
-        failedRecheck: Boolean
+        failedRecheck: Boolean,
+        parallelRAM: Number,
+        vmStatus: {
+            ffmpegStatus: Boolean,
+            ramStatus: Number,
+            reportTick: Number,
+            cpuStatus: Number,
+            totalStorage: Number,
+            totalRAM: Number,
+            storageStatus: Number
+        }
     }, { collection: 'robotSettings' });
     return mongoose.model('robotModel', robotSchema);
 }

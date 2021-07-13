@@ -19,7 +19,8 @@ module.exports = function (mongoose) {
       formatCheck: Boolean,
       checkTick: Number,
       converisionDate: Number,
-      converisionDuration: Number
+      converisionDuration: Number,
+      queueDate: Number
     }
   }, { collection: 'fileDB' });
   return mongoose.model('fileModel', fileSchema);

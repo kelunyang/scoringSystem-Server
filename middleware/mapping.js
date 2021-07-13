@@ -731,8 +731,8 @@ module.exports = async (models) => {
       authRange: _.flatten([setting.settingTags, setting.projectTags]),
       loginRequire: true
     },
-    checkFFmpeg: {
-      action: '檢查ffmpeg轉檔機器人狀態',
+    checkbotVM: {
+      action: '檢查機器人機狀態',
       where: '設定模組',
       authRange: setting.settingTags,
       loginRequire: true
