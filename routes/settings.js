@@ -151,7 +151,7 @@ module.exports = (io, models) => {
           action: '啟動'
         }).sort({ tick: -1 }).exec();
         lastConverision =  lastConverision === null ? 0 : lastConverision.tick;
-        ffmpegbotOn = _.inRange(now, lastConverision, lastConverision + 60) || now === lastConverision + 60;
+        ffmpegbotOn = _.inRange(now, lastConverision, lastConverision + 120);
       }
       if(!robotSetting.vmStatus.ffmpegStatus) {
         let lastConverision = await models.logModel.findOne({
@@ -159,7 +159,7 @@ module.exports = (io, models) => {
           action: '結束'
         }).sort({ tick: -1 }).exec();
         lastConverision =  lastConverision === null ? 0 : lastConverision.tick;
-        ffmpegbotOff = _.inRange(now, lastConverision, lastConverision + 60) || now === lastConverision + 60;
+        ffmpegbotOff = _.inRange(now, lastConverision, lastConverision + 120);
       }
       io.p2p.emit('checkbotVM', {
         ffmpegOn: ffmpegbotOn,
@@ -187,10 +187,11 @@ module.exports = (io, models) => {
   io.p2p.on('listRobotLog', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       let logs = await models.logModel.find({
-        where: new RegExp(data, "g")
+        where: new RegExp(data.botName, "g"),
+        action: new RegExp(data.action, "g")
       }).sort({
         tick: -1
-      }).limit(10).exec();
+      }).limit(data.logNum).exec();
       io.p2p.emit('listRobotLog', logs);
     }
     return;

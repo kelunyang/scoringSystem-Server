@@ -2351,6 +2351,33 @@ module.exports = (io, models) => {
     return;
   });
 
+  io.p2p.on('dashboardObjectives', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      let requestStages = _.map(data, (stage) => {
+        return new ObjectId(stage);
+      });
+      let objectives = await models.objectiveModel.aggregate([
+        {
+          $match: {
+            stage: {
+              $in: requestStages
+            }
+          }
+        },
+        {
+          $group: {
+            _id: '$KB',
+            objectives: {
+              $push: "$$ROOT"
+            }
+          }
+        }
+      ]);
+      io.p2p.emit('dashboardObjectives', objectives);
+    }
+    return;
+  });
+
   io.p2p.on('getlatestVersions', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       let user = await models.userModel.findOne({

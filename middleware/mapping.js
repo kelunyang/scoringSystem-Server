@@ -773,5 +773,11 @@ module.exports = async (models) => {
       authRange: [],
       loginRequire: true
     },
+    dashboardObjectives: {
+      action: 'dashboard下載當前階段的目標統計',
+      where: '知識點模組',
+      authRange: [],
+      loginRequire: true
+    }
   }
 }
