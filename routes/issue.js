@@ -250,6 +250,18 @@ module.exports = (io, models) => {
           await models.issueModel.deleteOne({
             _id: new ObjectId(data)
           }).exec();
+          let KB = await models.KBModel.findOne({
+            _id: issue.KB
+          }).exec();
+          let event = await models.eventlogModel.create({
+            tick: moment().unix(),
+            type: '知識點審查',
+            desc: '刪除Issue',
+            KB: KB._id,
+            user: new ObjectId(io.p2p.request.session.passport.user)
+          });
+          KB.eventLog.push(event._id);
+          await KB.save();
           io.p2p.emit('removeIssue', true);
           await getissueList(issue.KB._id, enableBroadcast);
         } else {
@@ -292,13 +304,16 @@ module.exports = (io, models) => {
             return uTag.equals(aTag);
           })).length > 0;
           if(tagCheck) {
+            let KB = await models.KBModel.findOne({
+              _id: data.KB
+            }).exec();
             let issue = null;
             if(data.parent === undefined || data.parent === null) {
               issue = await models.issueModel.create({ 
                 tick: now,
                 attachments: [],
                 user: currentUser,
-                KB: data.KB,
+                KB: KB._id,
                 version: data.version,
                 parent: undefined,
                 status: false,
@@ -312,6 +327,15 @@ module.exports = (io, models) => {
                 issue: issue._id,
                 tick: now
               });
+              let event = await models.eventlogModel.create({
+                tick: now,
+                type: '知識點審查',
+                desc: '增加Issue',
+                KB: KB._id,
+                user: new ObjectId(io.p2p.request.session.passport.user)
+              });
+              KB.eventLog.push(event._id);
+              await KB.save();
               io.p2p.emit('addIssue', {
                 _id: issue._id,
                 parent: issue.parent
@@ -326,7 +350,7 @@ module.exports = (io, models) => {
                   tick: now,
                   attachments: [],
                   user: currentUser,
-                  KB: data.KB,
+                  KB: KB._id,
                   version: data.version,
                   parent: parentID,
                   status: false,
@@ -340,6 +364,15 @@ module.exports = (io, models) => {
                   issue: issue._id,
                   tick: now
                 });
+                let event = await models.eventlogModel.create({
+                  tick: now,
+                  type: '知識點審查',
+                  desc: '增加Issue',
+                  KB: KB._id,
+                  user: new ObjectId(io.p2p.request.session.passport.user)
+                });
+                KB.eventLog.push(event._id);
+                await KB.save();
                 io.p2p.emit('addIssue', {
                   _id: issue._id,
                   parent: issue.parent

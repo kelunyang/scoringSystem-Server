@@ -254,6 +254,10 @@ module.exports = (io, models) => {
       try {
         let exist = await fs.access(globalSetting.storageLocation + '/' + data.fileID);
         if(exist) { await fs.remove(globalSetting.storageLocation + '/' + data.fileID); }
+        let fileObj = await models.fileModel.findOne({
+          _id: data.fileID
+        }).exec();
+        let filename = fileObj.name;
         await models.fileModel.deleteOne({
           _id: data.fileID
         }).exec();
@@ -263,6 +267,14 @@ module.exports = (io, models) => {
         KB.versions = KB.versions.filter((att) => {
           return !att._id.equals(data.fileID);
         });
+        let event = await models.eventlogModel.create({
+          tick: moment().unix(),
+          type: '知識點操作',
+          desc: '刪除知識點檔案，檔案名' + filename,
+          KB: KB._id,
+          user: new ObjectId(io.p2p.request.session.passport.user)
+        });
+        KB.eventLog.push(event._id);
         await KB.save();
         io.p2p.emit('deleteKBVersion', true);
       } catch(err) {
@@ -306,7 +318,15 @@ module.exports = (io, models) => {
             _id: data.uid
           }).exec();
           KB.versions.push(file._id);
-          KB.save();
+          let event = await models.eventlogModel.create({
+            tick: moment().unix(),
+            type: '知識點操作',
+            desc: '上傳知識點檔案，檔案名' + file.name,
+            KB: KB._id,
+            user: new ObjectId(io.p2p.request.session.passport.user)
+          });
+          KB.eventLog.push(event._id);
+          await KB.save();
           io.p2p.emit('KBVersionUploadDone', KB._id);
         } catch (err) {
           return io.p2p.emit('KBVersionUploadError', JSON.stringify(err)); 
