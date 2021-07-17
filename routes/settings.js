@@ -189,7 +189,7 @@ module.exports = (io, models) => {
       let logs = await models.logModel.find({
         where: new RegExp(data.botName, "g"),
         action: new RegExp(data.action, "g"),
-        comment: new RegExp(data.comment, "g")
+        $or: [ { comment: { $exists: false} }, {comment: new RegExp(data.comment, "g") }]
       }).sort({
         tick: -1
       }).limit(data.logNum).exec();
