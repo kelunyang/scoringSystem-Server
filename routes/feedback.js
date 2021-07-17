@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const moment = require('moment');
+const dayjs = require('dayjs');
 const { ObjectId } = require('mongodb');
 const fs = require('fs-extra');
 const TurndownService = require('turndown')
@@ -87,7 +87,7 @@ module.exports = (io, models) => {
         feedback.parent = data.parent === undefined || data.parent === null ? undefined : new ObjectId(data.parent);
         feedback.body = turndownService.turndown(data.body);
         feedback.type = data.type;
-        feedback.tick = moment().unix();
+        feedback.tick = dayjs().unix();
         await feedback.save();
         io.p2p.emit('setFeedback', true);
         let mainThread = feedback.parent === undefined ? new ObjectId(data._id) : new ObjectId(feedback.parent);
@@ -249,7 +249,7 @@ module.exports = (io, models) => {
     if(io.p2p.request.session.status.type === 3) {
       let userID = new ObjectId(io.p2p.request.session.passport.user);
       var feedback = await models.feedbackModel.create({ 
-        tick: moment().unix(),
+        tick: dayjs().unix(),
         attachments: [],
         user: userID,
         users: [

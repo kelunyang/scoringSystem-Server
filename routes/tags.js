@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const moment = require('moment');
+const dayjs = require('dayjs');
 const { ObjectId } = require('mongodb');
 const _ = require('lodash');
 
@@ -54,7 +54,7 @@ module.exports = (io, models) => {
       }).exec();
       if(tag.length === 0) {
         await models.tagModel.create({ 
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           name: data,
         });
         io.p2p.emit('addTag', true);

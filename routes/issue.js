@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const moment = require('moment');
+const dayjs = require('dayjs');
 const { ObjectId } = require('mongodb');
 const fs = require('fs-extra');
 const TurndownService = require('turndown')
@@ -76,14 +76,14 @@ module.exports = (io, models) => {
           issue.body = turndownService.turndown(data.body);
           issue.type = data.type;
           issue.sealed = true;
-          issue.tick = moment().unix();
+          issue.tick = dayjs().unix();
           await issue.save();
           io.p2p.emit('setIssue', true);
           await getissueList(issue.KB._id, enableBroadcast);
         } else {
           io.p2p.emit('accessViolation', {
             where: '知識點審查',
-            tick: moment().unix(),
+            tick: dayjs().unix(),
             action: '設定Issue',
             loginRequire: false
           });
@@ -124,7 +124,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點審查',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '關注／取消關注Issue',
           loginRequire: false
         });
@@ -165,7 +165,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點審查',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '關閉／開放Issue',
           loginRequire: false
         });
@@ -254,7 +254,7 @@ module.exports = (io, models) => {
             _id: issue.KB
           }).exec();
           let event = await models.eventlogModel.create({
-            tick: moment().unix(),
+            tick: dayjs().unix(),
             type: '知識點審查',
             desc: '刪除Issue',
             KB: KB._id,
@@ -270,7 +270,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點審查',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '移除Issue',
           loginRequire: false
         });
@@ -282,7 +282,7 @@ module.exports = (io, models) => {
   io.p2p.on('addIssue', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       let currentUser = new ObjectId(io.p2p.request.session.passport.user);
-      let now = moment().unix();
+      let now = dayjs().unix();
       let KBstage = await models.stageModel.findOne({
         KB: data.KB,
         current: true
@@ -380,7 +380,7 @@ module.exports = (io, models) => {
               } else {
                 io.p2p.emit('accessViolation', {
                   where: '知識點審查',
-                  tick: moment().unix(),
+                  tick: dayjs().unix(),
                   action: 'Issue已關閉，無法新增',
                   loginRequire: false
                 });
@@ -389,7 +389,7 @@ module.exports = (io, models) => {
           } else {
             io.p2p.emit('accessViolation', {
               where: '知識點審查',
-              tick: moment().unix(),
+              tick: dayjs().unix(),
               action: '新增Issue',
               loginRequire: false
             });
@@ -397,7 +397,7 @@ module.exports = (io, models) => {
         } else {
           io.p2p.emit('accessViolation', {
             where: '知識點審查',
-            tick: moment().unix(),
+            tick: dayjs().unix(),
             action: '新增Issue',
             loginRequire: false
           });

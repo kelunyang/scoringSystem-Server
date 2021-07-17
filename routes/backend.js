@@ -3,7 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const log = require('../middleware/log');
 const { ObjectId } = require('mongodb');
-const moment = require('moment');
+const dayjs = require('dayjs');
 const axios = require('axios');
 const qs = require('qs');
 const mime = require('mime-types');
@@ -104,7 +104,7 @@ module.exports = (app, passport, models) => {
       let user = await models.userModel.findOne({
         _id: ObjectId(req.session.passport.user)
       }).exec();
-      let tick = moment().unix();
+      let tick = dayjs().unix();
       user.lineCode = req.query.code;
       user.lineToken = result.data.access_token;
       user.lineDate = tick;
@@ -119,9 +119,9 @@ module.exports = (app, passport, models) => {
           status : 1
         }]
       });
-      res.send("[" + moment.unix(user.lineDate).format("YYYY-MM-DD HH:mm:ss") + "] LINE Notify綁定完成，您的帳號是：" + user.name + "，請關閉本視窗");
+      res.send("[" + dayjs.unix(user.lineDate).format("YYYY-MM-DD HH:mm:ss") + "] LINE Notify綁定完成，您的帳號是：" + user.name + "，請關閉本視窗");
     } catch(e) {
-      let tick = moment().unix();
+      let tick = dayjs().unix();
       await models.logModel.create({ 
         tick: tick,
         name: ObjectId(user._id),

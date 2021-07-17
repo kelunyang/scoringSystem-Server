@@ -1,4 +1,4 @@
-const moment = require('moment');
+const dayjs = require('dayjs');
 const { ObjectId } = require('mongodb');
 const _ = require('lodash');
 
@@ -18,7 +18,7 @@ module.exports = async (socket, models, [event], next) => {
                         }).exec();
                         if(activeuser === undefined || activeuser === null) {
                             await models.activeuserModel.create({ 
-                                tick: moment().unix(),
+                                tick: dayjs().unix(),
                                 socketio: socket.id,
                                 session: socket.request.sessionID,
                                 where: action.where,
@@ -26,7 +26,7 @@ module.exports = async (socket, models, [event], next) => {
                                 user: new ObjectId(socket.request.session.passport.user)
                             });
                         } else {
-                            activeuser.tick = moment().unix();
+                            activeuser.tick = dayjs().unix();
                             activeuser.where = action.where;
                             activeuser.action = action.action;
                             await activeuser.save();
@@ -46,11 +46,11 @@ module.exports = async (socket, models, [event], next) => {
                             socket.request.session.status = {
                                 title: '確認權限完成',
                                 type: 3,
-                                tick: moment().unix()
+                                tick: dayjs().unix()
                             };
                             socket.request.session.save();
                             await models.logModel.create({ 
-                                tick: moment().unix(),
+                                tick: dayjs().unix(),
                                 name: ObjectId(user._id),
                                 where: action.where,
                                 action: ma.action + '需要權限：' + JSON.stringify(action.authRange) + '，確認權限完成'
@@ -64,11 +64,11 @@ module.exports = async (socket, models, [event], next) => {
                             socket.request.session.status = {
                                 title: '無權限操作',
                                 type: 1,
-                                tick: moment().unix()
+                                tick: dayjs().unix()
                             };
                             socket.request.session.save();
                             await models.logModel.create({ 
-                                tick: moment().unix(),
+                                tick: dayjs().unix(),
                                 name: ObjectId(user._id),
                                 where: action.where,
                                 action: ma.action + '需要權限：' + JSON.stringify(action.authRange) + '，無權限操作'
@@ -83,11 +83,11 @@ module.exports = async (socket, models, [event], next) => {
                         socket.request.session.status = {
                             title: '無權限驗證完成',
                             type: 3,
-                            tick: moment().unix()
+                            tick: dayjs().unix()
                         };
                         socket.request.session.save();
                         await models.logModel.create({ 
-                            tick: moment().unix(),
+                            tick: dayjs().unix(),
                             name: ObjectId(user._id),
                             where: action.where,
                             action: ma.action + '無權限驗證完成'
@@ -103,11 +103,11 @@ module.exports = async (socket, models, [event], next) => {
             socket.request.session.status = {
                 title: '尚未登入',
                 type: 0,
-                tick: moment().unix()
+                tick: dayjs().unix()
             };
             socket.request.session.save();
             await models.logModel.create({ 
-                tick: moment().unix(),
+                tick: dayjs().unix(),
                 name: authMapping.nobodyAccount,
                 where: action.where,
                 action: ma.action
@@ -121,11 +121,11 @@ module.exports = async (socket, models, [event], next) => {
             socket.request.session.status = {
                 title: '尚未登入',
                 type: 0,
-                tick: moment().unix()
+                tick: dayjs().unix()
             };
             socket.request.session.save();
             await models.logModel.create({ 
-                tick: moment().unix(),
+                tick: dayjs().unix(),
                 name: authMapping.nobodyAccount,
                 where: action.where,
                 action: ma.action

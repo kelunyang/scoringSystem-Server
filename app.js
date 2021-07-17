@@ -3,7 +3,7 @@ const express = require('express');
 const path = require('path');
 const logger = require('morgan');
 const mongoose = require('mongoose');
-const moment = require('moment');
+const dayjs = require('dayjs');
 const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 let session = require('express-session');
@@ -180,7 +180,7 @@ try {
                                     passport: socket.request.session.passport
                                 }
                                 await modelList.logModel.create({ 
-                                    tick: moment().unix(),
+                                    tick: dayjs().unix(),
                                     name: ObjectId(socket.request.session.passport.user),
                                     where: '登入模組',
                                     action: '登出成功'
@@ -283,7 +283,7 @@ try {
                 socket.emit('fatalError', {
                     code: code,
                     stack: stack,
-                    tick: moment().unix()
+                    tick: dayjs().unix()
                 });
             }
         });        

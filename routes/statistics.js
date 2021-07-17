@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const moment = require('moment');
+const dayjs = require('dayjs');
 const _ = require('lodash');
 const { ObjectId } = require('bson');
 

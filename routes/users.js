@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const moment = require('moment');
+const dayjs = require('dayjs');
 const bcrypt = require('bcryptjs');
 const { ObjectId } = require('mongodb');
 const nodemailer = require("nodemailer");
@@ -202,7 +202,7 @@ module.exports = (io, models) => {
           let tags = await availableTags(_.map(data.tags, (tag) => {
             return new ObjectId(tag);
           }));
-          let currentTick = moment().unix();
+          let currentTick = dayjs().unix();
           await models.userModel.create({
             tags: tags,
             types: 'human',
@@ -358,7 +358,7 @@ module.exports = (io, models) => {
         }
       }
       user.tags = newTags;
-      user.modDate = moment().unix();
+      user.modDate = dayjs().unix();
       user.name = data.name;
       user.types = data.types;
       user.firstRun = false;
@@ -445,13 +445,13 @@ module.exports = (io, models) => {
       user.types = data.types;
       user.unit = data.unit;
       user.firstRun = false;
-      user.modDate = moment().unix();
+      user.modDate = dayjs().unix();
       if(data.password !== '') {
         user.password = bcrypt.hashSync(data.password, bcrypt.genSaltSync(10));
       }
       await user.save();
       io.p2p.emit('setCurrentUser', {
-        modify: moment().unix()
+        modify: dayjs().unix()
       });
       io.p2p.emit('getCurrentUser', user);
     }
@@ -474,7 +474,7 @@ module.exports = (io, models) => {
           user.tags = _.unionWith(user.tags, newtags, (uTag, dTag) => {
             return uTag.equals(dTag);
           });
-          user.modDate = moment().unix();
+          user.modDate = dayjs().unix();
           await user.save();
           count++;
         }
@@ -509,7 +509,7 @@ module.exports = (io, models) => {
             }
           }
           user.tags = usernewTags;
-          user.modDate = moment().unix();
+          user.modDate = dayjs().unix();
           await user.save();
           count++;
         }

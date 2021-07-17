@@ -1,6 +1,6 @@
 let express = require('express');
 let router = express.Router();
-let moment = require('moment');
+const dayjs = require('dayjs');
 let axios = require('axios');
 let qs = require('qs');
 let os = require('os');
@@ -141,7 +141,7 @@ module.exports = (io, models) => {
 
   io.p2p.on('checkbotVM', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let now = moment().unix();
+      let now = dayjs().unix();
       let robotSetting = await models.robotModel.findOne({}).exec();
       let ffmpegbotOn = false;
       let ffmpegbotOff = false;
@@ -227,7 +227,7 @@ module.exports = (io, models) => {
       gSetting.backendRepo = data.backendRepo;
       gSetting.botRepo = data.botRepo;
       gSetting.storageLocation = data.storageLocation;
-      gSetting.tick = moment().unix();
+      gSetting.tick = dayjs().unix();
       gSetting.systemName = data.systemName;
       await gSetting.save();
       let rSetting = await models.robotModel.findOne({}).exec();

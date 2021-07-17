@@ -1,4 +1,4 @@
-const moment = require('moment');
+const dayjs = require('dayjs');
 const { ObjectId } = require('mongodb');
 const _ = require('lodash');
 
@@ -23,10 +23,10 @@ module.exports = (models) => {
                         res.locals.status = {
                             title: '確認權限完成',
                             type: 3,
-                            tick: moment().unix()
+                            tick: dayjs().unix()
                         };
                         await models.logModel.create({ 
-                            tick: moment().unix(),
+                            tick: dayjs().unix(),
                             name: ObjectId(user._id),
                             where: ma.where,
                             action: ma.action + '需要權限：' + JSON.stringify(action.authRange) + '，確認權限完成'
@@ -38,10 +38,10 @@ module.exports = (models) => {
                         res.locals.status = {
                             title: '無權限操作',
                             type: 1,
-                            tick: moment().unix()
+                            tick: dayjs().unix()
                         };
                         await models.logModel.create({ 
-                            tick: moment().unix(),
+                            tick: dayjs().unix(),
                             name: ObjectId(user._id),
                             where: ma.where,
                             action: ma.action + '需要權限：' + JSON.stringify(action.authRange) + '，無權限操作'
@@ -54,10 +54,10 @@ module.exports = (models) => {
                     res.locals.status = {
                         title: '無權限驗證完成',
                         type: 3,
-                        tick: moment().unix()
+                        tick: dayjs().unix()
                     };
                     await models.logModel.create({ 
-                        tick: moment().unix(),
+                        tick: dayjs().unix(),
                         name: ObjectId(user._id),
                         where: ma.where,
                         action: ma.action + '無權限驗證完成'
@@ -70,10 +70,10 @@ module.exports = (models) => {
             res.locals.status = {
                 title: '尚未登入',
                 type: 0,
-                tick: moment().unix()
+                tick: dayjs().unix()
             };
             await models.logModel.create({ 
-                tick: moment().unix(),
+                tick: dayjs().unix(),
                 name: authMapping.nobodyAccount,
                 where: ma.where,
                 action: ma.action
@@ -85,10 +85,10 @@ module.exports = (models) => {
             res.locals.status = {
                 title: '尚未登入',
                 type: 0,
-                tick: moment().unix()
+                tick: dayjs().unix()
             };
             await models.logModel.create({ 
-                tick: moment().unix(),
+                tick: dayjs().unix(),
                 name: authMapping.nobodyAccount,
                 where: ma.where,
                 action: ma.action

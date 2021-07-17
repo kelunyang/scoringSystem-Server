@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const moment = require('moment');
+const dayjs = require('dayjs');
 const { ObjectId } = require('mongodb');
 const fs = require('fs-extra');
 const axios = require('axios');
@@ -21,7 +21,7 @@ module.exports = (io, models) => {
       let userId = new ObjectId(io.p2p.request.session.passport.user);
       let receiverId = new ObjectId(data.receiver);
       if(!userId.equals(receiverId)) {
-        let now = moment().unix();
+        let now = dayjs().unix();
         let user = await models.userModel.findOne({
           _id: userId
         }).exec();
@@ -95,7 +95,7 @@ module.exports = (io, models) => {
               successArray.push({
                 name: user.name,
                 uid: user._id,
-                tick: moment().unix(),
+                tick: dayjs().unix(),
                 status: 1
               });
               success++;
@@ -103,7 +103,7 @@ module.exports = (io, models) => {
               successArray.push({
                 name: user.name,
                 uid: user._id,
-                tick: moment().unix(),
+                tick: dayjs().unix(),
                 status: 2
               });
               failed++;
@@ -111,7 +111,7 @@ module.exports = (io, models) => {
           } catch(e) {
             successArray.push({
               uid: user._id,
-              tick: moment().unix(),
+              tick: dayjs().unix(),
               status: 0
             });
             failed++;
@@ -119,7 +119,7 @@ module.exports = (io, models) => {
         }
       }
       await models.lineModel.create({ 
-        tick: moment().unix(),
+        tick: dayjs().unix(),
         body: data.body,
         log: successArray
       });
@@ -138,7 +138,7 @@ module.exports = (io, models) => {
         body: data.body
       });
       await models.broadcastModel.create({ 
-        tick: moment().unix(),
+        tick: dayjs().unix(),
         title: data.title,
         body: data.body,
         sender: io.p2p.request.session.passport.user,
@@ -248,7 +248,7 @@ module.exports = (io, models) => {
       message.type = data.type;
       message.body = data.body;
       message.status = data.status;
-      message.tick = moment().unix();
+      message.tick = dayjs().unix();
       await message.save();
       var collection = await models.messageModel.find({}).sort({tick: -1})
       .populate('attachments')
@@ -307,7 +307,7 @@ module.exports = (io, models) => {
   io.p2p.on('addMsg', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       var msg = await models.messageModel.create({ 
-        tick: moment().unix(),
+        tick: dayjs().unix(),
         attachments: [],
         user: io.p2p.request.session.passport.user
       });
@@ -317,7 +317,7 @@ module.exports = (io, models) => {
 
   io.p2p.on('addNTemplate', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let now = moment().unix();
+      let now = dayjs().unix();
       let user = new ObjectId(io.p2p.request.session.passport.user);
       var template = await models.notifytemplateModel.create({ 
         createTick: now,
@@ -339,7 +339,7 @@ module.exports = (io, models) => {
 
   io.p2p.on('modNTemplate', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let now = moment().unix();
+      let now = dayjs().unix();
       let group = _.map(data.group, (item) => {
         return new ObjectId(item);
       });

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const moment = require('moment');
+const dayjs = require('dayjs');
 const fs = require('fs-extra');
 const JSZip = require("jszip");
 const Papa = require('papaparse');
@@ -58,7 +58,7 @@ module.exports = (io, models) => {
       if (files[data.uuid].slice * 100000 >= files[data.uuid].size) { 
         let fileBuffer = Buffer.concat(files[data.uuid].data);
         let file = await models.fileModel.create({ 
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           name: data.name,
           type: data.type,
           size: data.size,
@@ -128,7 +128,7 @@ module.exports = (io, models) => {
       if (files[data.uuid].slice * 100000 >= files[data.uuid].size) { 
         let fileBuffer = Buffer.concat(files[data.uuid].data);
         let file = await models.fileModel.create({ 
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           name: data.name,
           type: data.type,
           size: data.size,
@@ -216,7 +216,7 @@ module.exports = (io, models) => {
       if (files[data.uuid].slice * 100000 >= files[data.uuid].size) { 
         let fileBuffer = Buffer.concat(files[data.uuid].data);
         let file = await models.fileModel.create({ 
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           name: data.name,
           type: data.type,
           size: data.size,
@@ -268,7 +268,7 @@ module.exports = (io, models) => {
           return !att._id.equals(data.fileID);
         });
         let event = await models.eventlogModel.create({
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           type: '知識點操作',
           desc: '刪除知識點檔案，檔案名' + filename,
           KB: KB._id,
@@ -300,7 +300,7 @@ module.exports = (io, models) => {
       if (files[data.uuid].slice * 100000 >= files[data.uuid].size) { 
         let fileBuffer = Buffer.concat(files[data.uuid].data);
         let file = await models.fileModel.create({ 
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           name: data.name,
           type: data.type,
           size: data.size,
@@ -319,7 +319,7 @@ module.exports = (io, models) => {
           }).exec();
           KB.versions.push(file._id);
           let event = await models.eventlogModel.create({
-            tick: moment().unix(),
+            tick: dayjs().unix(),
             type: '知識點操作',
             desc: '上傳知識點檔案，檔案名' + file.name,
             KB: KB._id,
@@ -381,7 +381,7 @@ module.exports = (io, models) => {
       if (files[data.uuid].slice * 100000 >= files[data.uuid].size) { 
         let fileBuffer = Buffer.concat(files[data.uuid].data);
         let file = await models.fileModel.create({ 
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           name: data.name,
           type: data.type,
           size: data.size,
@@ -444,7 +444,7 @@ module.exports = (io, models) => {
               .then(async function success(content) {
                 try {
                   content = stripBOM(content);
-                  let now = moment().unix();
+                  let now = dayjs().unix();
                   let mongoChapter = null;
                   let mongoKB = null;
                   let mongoFile = null;
@@ -586,7 +586,7 @@ module.exports = (io, models) => {
         try {
           io.p2p.emit('KBstatisticsUploadDone');
           io.p2p.emit('KBstatisticsReport', '讀入csv檔案...');
-          let now = moment().unix();
+          let now = dayjs().unix();
           let readStream = new stream.PassThrough();
           readStream.end(fileBuffer);
           Papa.parse(readStream, {
@@ -599,7 +599,7 @@ module.exports = (io, models) => {
                 let dates = [];
                 for(let i=1; i< result.data[0].length; i++) {
                   let date = result.data[0][i];
-                  dates.push(moment(date, "YYYY/MM/DD").unix());
+                  dates.push(dayjs(date, "YYYY/MM/DD").unix());
                 }
                 io.p2p.emit('KBstatisticsReport', '匯入統計資料庫');
                 for(let i=1; i< result.data.length; i++) {
@@ -617,7 +617,7 @@ module.exports = (io, models) => {
                         sourceTag: sourceTag
                       }).exec();
                       if(oldstatistics === null) {
-                        io.p2p.emit('KBstatisticsReport', '匯入' + KB.title + '於' + moment.unix(dates[k-1]).format('YYYY/MM/DD') + '的數據中...');
+                        io.p2p.emit('KBstatisticsReport', '匯入' + KB.title + '於' + dayjs.unix(dates[k-1]).format('YYYY/MM/DD') + '的數據中...');
                         await models.statisticsKBModel.create({
                           KB: KB._id,
                           logTick: dates[k-1],

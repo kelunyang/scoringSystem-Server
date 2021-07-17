@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const moment = require('moment');
+const dayjs = require('dayjs');
 const { ObjectId } = require('mongodb');
 const fs = require('fs-extra');
 const TurndownService = require('turndown')
@@ -141,8 +141,8 @@ module.exports = (io, models) => {
             }
           });
         } else {
-          let startTick = moment(data.logRange[0]).unix() > moment(data.logRange[1]).unix() ? moment(data.logRange[1]).unix() : moment(data.logRange[0]).unix();
-          let endTick = moment(data.logRange[0]).unix() > moment(data.logRange[1]).unix() ? moment(data.logRange[0]).unix() : moment(data.logRange[1]).unix();
+          let startTick = dayjs(data.logRange[0]).unix() > dayjs(data.logRange[1]).unix() ? dayjs(data.logRange[1]).unix() : dayjs(data.logRange[0]).unix();
+          let endTick = dayjs(data.logRange[0]).unix() > dayjs(data.logRange[1]).unix() ? dayjs(data.logRange[0]).unix() : dayjs(data.logRange[1]).unix();
           queryCmd.push({
             $match: {
               KB: new ObjectId(data.KBID),
@@ -203,7 +203,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點操作',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '查詢知識點事件',
           loginRequire: false
         });
@@ -246,7 +246,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點審查',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '加入知識點審查',
           loginRequire: false
         });
@@ -282,7 +282,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點審查',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '離開知識點審查',
           loginRequire: false
         });
@@ -309,7 +309,7 @@ module.exports = (io, models) => {
     if(io.p2p.request.session.status.type === 3) {
       let user = new ObjectId(io.p2p.request.session.passport.user);
       let issueID = new ObjectId(data);
-      let now = moment().unix();
+      let now = dayjs().unix();
       let issueList = [];
       let childThreads = await models.issueModel.find({
         parent: issueID
@@ -390,7 +390,7 @@ module.exports = (io, models) => {
         return uTag.equals(aTag);
       })).length > 0;
       if(tagCheck) {
-        let now = moment().unix();
+        let now = dayjs().unix();
         let tagID = new ObjectId(data);
         let chapters = await models.chapterModel.find({
           tag: tagID
@@ -409,7 +409,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點編輯',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '增加知識點章節',
           loginRequire: false
         });
@@ -433,7 +433,7 @@ module.exports = (io, models) => {
         var chapter = await models.chapterModel.findOne({
           _id: new ObjectId(data._id)
         }).exec();
-        chapter.modDate = moment().unix();
+        chapter.modDate = dayjs().unix();
         chapter.title = data.title;
         await chapter.save();
         io.p2p.emit('setChapter', true);
@@ -441,7 +441,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點編輯',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '設定知識點章節',
           loginRequire: false
         });
@@ -463,7 +463,7 @@ module.exports = (io, models) => {
       })).length > 0;
       let sortCount = 0;
       if(tagCheck) {
-        let now = moment().unix();
+        let now = dayjs().unix();
         for(let i=0; i<data.DB.length; i++) {
           let ch = data.DB[i];
           var chapter = await models.chapterModel.findOne({
@@ -507,7 +507,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點編輯',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '儲存知識點順序',
           loginRequire: false
         });
@@ -598,7 +598,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點編輯',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '移除知識點章節',
           loginRequire: false
         });
@@ -619,7 +619,7 @@ module.exports = (io, models) => {
         return uTag.equals(aTag);
       })).length > 0;
       if(tagCheck) {
-        let now = moment().unix();
+        let now = dayjs().unix();
         let chapterID = new ObjectId(data.chapter);
         let chapter = await models.chapterModel.findOne({
           _id: chapterID
@@ -658,7 +658,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點編輯',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '增加知識點',
           loginRequire: false
         });
@@ -679,7 +679,7 @@ module.exports = (io, models) => {
         return uTag.equals(aTag);
       })).length > 0;
       if(tagCheck) {
-        let now = moment().unix();
+        let now = dayjs().unix();
         var KB = await models.KBModel.findOne({ 
           _id: new ObjectId(data.KB._id)
         }).exec();
@@ -703,7 +703,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點編輯',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '設定知識點',
           loginRequire: false
         });
@@ -788,7 +788,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點編輯',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '移除知識點',
           loginRequire: false
         });
@@ -809,7 +809,7 @@ module.exports = (io, models) => {
         return uTag.equals(aTag);
       })).length > 0;
       if(tagCheck) {
-        let now = moment().unix();
+        let now = dayjs().unix();
         let KBID = new ObjectId(data._id);
         let KB = await models.KBModel.findOne({
           _id: KBID
@@ -851,7 +851,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點編輯',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '新增知識點階段',
           loginRequire: false
         });
@@ -889,7 +889,7 @@ module.exports = (io, models) => {
           return uTag.equals(aTag);
         })).length > 0;
         if(tagCheck) {
-          let now = moment().unix();
+          let now = dayjs().unix();
           await models.KBModel.updateOne({
             _id: KBID
           },{
@@ -908,7 +908,7 @@ module.exports = (io, models) => {
         } else {
           io.p2p.emit('accessViolation', {
             where: '知識點操作',
-            tick: moment().unix(),
+            tick: dayjs().unix(),
             action: '設定知識點標籤',
             loginRequire: true
           });
@@ -934,7 +934,7 @@ module.exports = (io, models) => {
       if(tagCheck) {
         let KBID = new ObjectId(data.KB);
         let stageID = new ObjectId(data.stage);
-        let now = moment().unix();
+        let now = dayjs().unix();
         let obj = await models.objectiveModel.create({
           tick: now,
           name: data.name,
@@ -962,7 +962,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點編輯',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '新增知識點階段目標',
           loginRequire: false
         });
@@ -990,7 +990,7 @@ module.exports = (io, models) => {
         let KBID = new ObjectId(data.KB);
         let stageID = new ObjectId(data.stage);
         let OID = new ObjectId(data.OID);
-        let now = moment().unix();
+        let now = dayjs().unix();
         let userID = new ObjectId(io.p2p.request.session.passport.user);
         let agree = false;
         let obj = await models.objectiveModel.findOne({
@@ -1051,7 +1051,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點操作',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '核可／駁回知識點階段目標',
           loginRequire: false
         });
@@ -1076,7 +1076,7 @@ module.exports = (io, models) => {
         return uTag.equals(aTag);
       })).length > 0;
       if(tagCheck) {
-        let now = moment().unix();
+        let now = dayjs().unix();
         let KBID = new ObjectId(data.KB);
         let stageID = new ObjectId(data.stage);
         let object = await models.objectiveModel.updateOne({
@@ -1103,7 +1103,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點編輯',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '撤回知識點階段單一目標許可',
           loginRequire: false
         });
@@ -1128,7 +1128,7 @@ module.exports = (io, models) => {
         return uTag.equals(aTag);
       })).length > 0;
       if(tagCheck) {
-        let now = moment().unix();
+        let now = dayjs().unix();
         let KBID = new ObjectId(data.KB);
         let stageID = new ObjectId(data.stage);
         await models.objectiveModel.updateMany({
@@ -1155,7 +1155,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點編輯',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '撤回知識點階段目標許可',
           loginRequire: false
         });
@@ -1176,7 +1176,7 @@ module.exports = (io, models) => {
         return uTag.equals(aTag);
       })).length > 0;
       if(tagCheck) {
-        let now = moment().unix();
+        let now = dayjs().unix();
         let OID = new ObjectId(data.OID);
         let KBID = new ObjectId(data.KB);
         let stageID = new ObjectId(data.stage);
@@ -1208,7 +1208,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點編輯',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '移除知識點階段目標',
           loginRequire: false
         });
@@ -1229,7 +1229,7 @@ module.exports = (io, models) => {
         return uTag.equals(aTag);
       })).length > 0;
       if(tagCheck) {
-        let now = moment().unix();
+        let now = dayjs().unix();
         let sid = new ObjectId(data.stage._id);
         let savedStage = await models.stageModel.findOne({
           _id: sid
@@ -1298,7 +1298,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點編輯',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '設定知識點階段',
           loginRequire: false
         });
@@ -1345,7 +1345,7 @@ module.exports = (io, models) => {
         } else {
           io.p2p.emit('accessViolation', {
             where: '知識點編輯',
-            tick: moment().unix(),
+            tick: dayjs().unix(),
             action: '移除知識點階段',
             loginRequire: false
           });
@@ -1367,7 +1367,7 @@ module.exports = (io, models) => {
         return uTag.equals(aTag);
       })).length > 0;
       if(tagCheck) {
-        let now = moment().unix();
+        let now = dayjs().unix();
         var stages = await models.stageModel.find({
           KB: new ObjectId(data.subject._id)
         }).exec();
@@ -1433,7 +1433,7 @@ module.exports = (io, models) => {
                     name: obj.name,
                     stage: newStage._id,
                     KB: target._id,
-                    tick: moment().unix()
+                    tick: dayjs().unix()
                   });
                   objs.push(newObj._id);
                 }
@@ -1462,7 +1462,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點編輯',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '複製知識點',
           loginRequire: false
         });
@@ -1492,7 +1492,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點操作',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '取得知識點說明',
           loginRequire: false
         });
@@ -1585,7 +1585,7 @@ module.exports = (io, models) => {
         return uTag.equals(aTag);
       })).length > 0;
       if(tagCheck) {
-        let now = moment().unix();
+        let now = dayjs().unix();
         let pointer = data.stagePointer > 0 ? data.stagePointer - 1 : 0;
         for(let i=0; i<data.KBs.length; i++) {
           let KBID = data.KBs[i];
@@ -1648,7 +1648,7 @@ module.exports = (io, models) => {
       } else {
         io.p2p.emit('accessViolation', {
           where: '知識點編輯',
-          tick: moment().unix(),
+          tick: dayjs().unix(),
           action: '快速指定知識點用戶權限',
           loginRequire: false
         });
@@ -2265,7 +2265,7 @@ module.exports = (io, models) => {
     if(io.p2p.request.session.status.type === 3) {
       let uid = new ObjectId(io.p2p.request.session.passport.user);
       let KBID = new ObjectId(data);
-      let now = moment().unix();
+      let now = dayjs().unix();
       let readedVersion = await models.readedVersionModel.find({
         user: uid,
         KBID: KBID
