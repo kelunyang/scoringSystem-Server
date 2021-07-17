@@ -188,7 +188,8 @@ module.exports = (io, models) => {
     if(io.p2p.request.session.status.type === 3) {
       let logs = await models.logModel.find({
         where: new RegExp(data.botName, "g"),
-        action: new RegExp(data.action, "g")
+        action: new RegExp(data.action, "g"),
+        comment: new RegExp(data.comment, "g")
       }).sort({
         tick: -1
       }).limit(data.logNum).exec();

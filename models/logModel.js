@@ -9,7 +9,8 @@ module.exports = function (mongoose) {
             ref: "userModel"
         },
         where: String,
-        action: String
+        action: String,
+        comment: String
     }, { collection: 'logDB' });
     return mongoose.model('logModel', logSchema);
 }

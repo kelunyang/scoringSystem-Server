@@ -116,6 +116,102 @@ module.exports = (io, models) => {
     return;
   };
 
+  io.p2p.on('listKBLog', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      let KBID = new ObjectId(data.KBID);
+      let KBstage = await models.stageModel.findOne({
+        current: true,
+        KB: KBID
+      }).exec();
+      let globalSetting = await models.settingModel.findOne({}).exec();
+      let currentUser = new ObjectId(io.p2p.request.session.passport.user);
+      let user =  await models.userModel.findOne({
+        _id: currentUser
+      }).exec();
+      let autherizedTags = _.flatten([KBstage.vendorTags, KBstage.pmTags,globalSetting.settingTags]);
+      let tagCheck = (_.intersectionWith(user.tags, autherizedTags, (uTag, aTag) => {
+        return uTag.equals(aTag);
+      })).length > 0;
+      if(tagCheck) {
+        let queryCmd = [];
+        if(data.logRange[0] === data.logRange[1]) {
+          queryCmd.push({
+            $match: {
+              KB: KBID
+            }
+          });
+        } else {
+          let startTick = moment(data.logRange[0]).unix() > moment(data.logRange[1]).unix() ? moment(data.logRange[1]).unix() : moment(data.logRange[0]).unix();
+          let endTick = moment(data.logRange[0]).unix() > moment(data.logRange[1]).unix() ? moment(data.logRange[0]).unix() : moment(data.logRange[1]).unix();
+          queryCmd.push({
+            $match: {
+              KB: new ObjectId(data.KBID),
+              tick: {
+                $gte: startTick,
+                $lte: endTick
+              }
+            }
+          });
+        }
+        queryCmd.push({
+          $lookup: {
+            from: 'userDB',
+            localField: 'user',
+            foreignField: '_id',
+            as: 'user'
+          },
+        });
+        queryCmd.push({ $unwind: { "path": "$user", "preserveNullAndEmptyArrays": true } });
+        queryCmd.push({
+          $addFields: 
+            { 
+              queryWords: { $concat: [ "$user.name", "$desc", "$type" ] }
+            }
+          });
+        if(!data.eventIgnore) {
+          queryCmd.push(
+            {
+              $match: {
+                queryWords: new RegExp(data.keyword, "g")
+              }
+            }
+          );
+        } else {
+          queryCmd.push(
+            {
+              $match: {
+                queryWords: new RegExp(data.keyword, "g"),
+                $not: {
+                  desc: /儲存知識點順序/g
+                }
+              }
+            }
+          );
+        }
+        queryCmd.push(
+          {
+            $sort: {
+              tick: -1
+            }
+          },
+          {
+            $limit: data.logNum
+          }
+        );
+        var eventLogs = await models.eventlogModel.aggregate(queryCmd);
+        io.p2p.emit('listKBLog', eventLogs);
+      } else {
+        io.p2p.emit('accessViolation', {
+          where: '知識點操作',
+          tick: moment().unix(),
+          action: '查詢知識點事件',
+          loginRequire: false
+        });
+      }
+    }
+    return;
+  });
+
   io.p2p.on('getChapters', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       await allChapterListed(data);
@@ -944,7 +1040,7 @@ module.exports = (io, models) => {
         }).exec();
         let event = await models.eventlogModel.create({
           tick: now,
-          type: '知識點操作',
+          type: '知識點審查',
           desc: agree ? '知識點階段目標已同意' : '知識點階段目標已否決',
           KB: KBID,
           user: new ObjectId(io.p2p.request.session.passport.user)
@@ -996,7 +1092,7 @@ module.exports = (io, models) => {
         }).exec();
         let event = await models.eventlogModel.create({
           tick: now,
-          type: '知識點操作',
+          type: '知識點審查',
           desc: '撤回知識點編輯階段單一目標許可',
           KB: KBID,
           user: new ObjectId(io.p2p.request.session.passport.user)
@@ -1048,7 +1144,7 @@ module.exports = (io, models) => {
         }).exec();
         let event = await models.eventlogModel.create({
           tick: now,
-          type: '知識點操作',
+          type: '知識點審查',
           desc: '撤回知識點編輯階段目標許可',
           KB: KBID,
           user: new ObjectId(io.p2p.request.session.passport.user)
@@ -1591,7 +1687,7 @@ module.exports = (io, models) => {
           $group: {
             _id: '$KB',
             events: {
-              $push:   {
+              $first:   {
                 _id: "$_id",
                 tick: "$tick",
                 type: "$type",
@@ -1606,12 +1702,6 @@ module.exports = (io, models) => {
                 }
               }
             }
-          }
-        },
-        {
-          $project: {
-            _id: 1,
-            events: { $slice: ["$events", 3] }
           }
         }
       ]

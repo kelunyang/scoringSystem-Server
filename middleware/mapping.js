@@ -778,6 +778,12 @@ module.exports = async (models) => {
       where: '知識點模組',
       authRange: [],
       loginRequire: true
+    },
+    listKBLog: {
+      action: 'dashboard下載知識點編輯紀錄',
+      where: '知識點模組',
+      authRange: [],
+      loginRequire: true
     }
   }
 }
