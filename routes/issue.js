@@ -49,6 +49,7 @@ module.exports = (io, models) => {
 
   io.p2p.on('setIssue', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
+      let now = dayjs().unix();
       var issue = await models.issueModel.findOne({
         _id: new ObjectId(data._id)
       })
@@ -76,14 +77,26 @@ module.exports = (io, models) => {
           issue.body = turndownService.turndown(data.body);
           issue.type = data.type;
           issue.sealed = true;
-          issue.tick = dayjs().unix();
+          issue.tick = now;
           await issue.save();
+          let KB = await models.KBModel.findOne({
+            _id: issue.KB
+          }).exec();
+          let event = await models.eventlogModel.create({
+            tick: now,
+            type: '知識點審查',
+            desc: '編輯Issue',
+            KB: KB._id,
+            user: new ObjectId(io.p2p.request.session.passport.user)
+          });
+          KB.eventLog.push(event._id);
+          await KB.save();
           io.p2p.emit('setIssue', true);
           await getissueList(issue.KB._id, enableBroadcast);
         } else {
           io.p2p.emit('accessViolation', {
             where: '知識點審查',
-            tick: dayjs().unix(),
+            tick: now,
             action: '設定Issue',
             loginRequire: false
           });

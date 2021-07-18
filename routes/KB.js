@@ -1014,6 +1014,9 @@ module.exports = (io, models) => {
             }
           );
         }
+        let KB = await models.KBModel.findOne({
+          _id: KBID
+        }).exec();
         let objs = await models.objectiveModel.find({
           stage: stageID,
           signUser: { $exists: false }
@@ -1032,12 +1035,27 @@ module.exports = (io, models) => {
             nextStage.current = true;
             nextStage.startTick = now;
             await nextStage.save();
+            let event = await models.eventlogModel.create({
+              tick: now,
+              type: '知識點審查',
+              desc: '進入：' + nextStage.name + '階段',
+              KB: KBID,
+              user: new ObjectId(io.p2p.request.session.passport.user)
+            });
+            KB.eventLog.push(event._id);
+            await KB.save();
           }
+          let event = await models.eventlogModel.create({
+            tick: now,
+            type: '知識點審查',
+            desc: '已完成：' + stage.name + '階段',
+            KB: KBID,
+            user: new ObjectId(io.p2p.request.session.passport.user)
+          });
+          KB.eventLog.push(event._id);
+          await KB.save();
           await stage.save();
         }
-        let KB = await models.KBModel.findOne({
-          _id: KBID
-        }).exec();
         let event = await models.eventlogModel.create({
           tick: now,
           type: '知識點審查',
