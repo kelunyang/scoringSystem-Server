@@ -1615,6 +1615,15 @@ module.exports = (io, models) => {
             let savedStage = await models.stageModel.findOne({
               _id: new ObjectId(stageID)
             }).exec();
+            if(data.onStage) {
+              await models.stageModel.updateMany({
+                KB: KBID,
+                _id: { $ne: stageID }
+              }, {
+                current: false
+              });
+              savedStage.current = true;
+            }
             savedStage.pmTags = _.unionWith(savedStage.pmTags, data.pmTags, (sTag, dTag) => {
               return (new ObjectId(sTag)).equals(new ObjectId(dTag));
             });
