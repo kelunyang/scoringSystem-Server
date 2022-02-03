@@ -1,8 +1,9 @@
-const dayjs = require('dayjs');
+import dayjs from 'dayjs';
+import mapping from './mapping.js';
 
-module.exports = (data) => {
+export default function (data) {
   return async (req, res, next) => {
-    let authMapping = await require('./mapping')(data.models);
+    let authMapping = await mapping(data.models);
     let action = authMapping[data.action];
     let comment = data.action === 'loginFail' ? '使用帳號密碼組合為' + req.app.locals.username + '/' + req.app.locals.password : data.comment;
     await data.models.logModel.create({ 

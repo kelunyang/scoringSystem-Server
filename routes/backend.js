@@ -1,16 +1,16 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const auth = require('../middleware/auth');
-const log = require('../middleware/log');
-const { ObjectId } = require('mongodb');
-const dayjs = require('dayjs');
-const axios = require('axios');
-const qs = require('qs');
-const mime = require('mime-types');
-const fs = require('fs-extra');
+import auth from '../middleware/auth.js';
+import log from '../middleware/log.js';
+import { ObjectId } from 'mongodb';
+import dayjs from 'dayjs';
+import axios from 'axios';
+import qs from 'qs';
+import mime from 'mime-types';
+import fs from 'fs-extra';
 
 /* GET users listing. */
-module.exports = (app, passport, models) => {
+export default function (app, passport, models) {
   router.post('/login', auth(models), (req, res, next) => {
     req.app.locals.username = req.body.user;
     req.app.locals.password = req.body.pass;

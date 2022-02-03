@@ -1,13 +1,13 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const dayjs = require('dayjs');
-const { ObjectId } = require('mongodb');
-const fs = require('fs-extra');
-const axios = require('axios');
-const qs = require('qs');
-const _ = require('lodash');
+import dayjs from 'dayjs';
+import { ObjectId } from 'mongodb';
+import fs from 'fs-extra';
+import axios from 'axios';
+import qs from 'qs';
+import _ from 'lodash';
 
-module.exports = (io, models) => {
+export default function (io, models) {
   
   let getNtemplates = async() => {
     let templates = await models.notifytemplateModel.find()

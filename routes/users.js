@@ -1,22 +1,34 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const dayjs = require('dayjs');
-const bcrypt = require('bcryptjs');
-const { ObjectId } = require('mongodb');
-const nodemailer = require("nodemailer");
-const validator = require('validator');
-const _ = require('lodash');
+import dayjs from 'dayjs';
+import bcrypt from 'bcryptjs';
+import { ObjectId } from 'mongodb';
+import nodemailer from "nodemailer";
+import _ from 'lodash';
+import frontTable from '../middleware/frontendAuth.js';
 const APPENDMODE = false;
 
-module.exports = (io, models) => {
+export default function (io, models) {
   let getUsers = async() => {
     let queryCriteria = [];
+    let visibilityTags = _.map(await models.tagModel.find({
+      visibility: true
+    }).exec(), (item) => {
+      return item._id;
+    });
     let setting = await models.settingModel.findOne({}).exec();
     let currentUser =  await models.userModel.findOne({
       _id: new ObjectId(io.p2p.request.session.passport.user)
     }).exec();
     let settingIncluded = _.intersectionWith(currentUser.tags, setting.settingTags, (uTag, sTag) => {
       return uTag.equals(sTag);
+    });
+    queryCriteria.push({
+      $match: {
+        tags: {
+          $in: visibilityTags
+        }
+      }
     });
     if(settingIncluded.length === 0) {
       queryCriteria.push(
@@ -115,7 +127,7 @@ module.exports = (io, models) => {
   });
 
   io.p2p.on('getAuthLevel', async (data) => {
-    let table = await require('../middleware/frontendAuth')(models);
+    let table = await frontTable(models);
     io.p2p.emit('getAuthLevel', table);
     return;
   });
@@ -176,7 +188,7 @@ module.exports = (io, models) => {
     return;
   });
 
-  io.p2p.on('createUsers', async (data) => {
+  /*io.p2p.on('createUsers', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       let robotSetting = await models.robotModel.findOne({}).exec();
       let setting = await models.settingModel.findOne({}).exec();
@@ -245,7 +257,7 @@ module.exports = (io, models) => {
       getUsers();
     }
     return;
-  });
+  });*/
 
   io.p2p.on('passwordClientReset', async (data) => {
     let user = await models.userModel.findOne({
@@ -311,9 +323,9 @@ module.exports = (io, models) => {
       });
       try {
         let info = await transporter.sendMail({
-          from: '"臺北市學科影片審查系統" <kelunyang@outlook.com>',
+          from: '"' + setting.systemName + '" <' + robotSetting.mailAccount + '>',
           to: user.email,
-          subject: "臺北市學科影片審查系統：帳號密碼重置通知信",
+          subject: setting.systemName + "：帳號密碼重置通知信",
           text: "您好，您的密碼已經被重置了，系統預設密碼是：" + password + "\n請記得在登入後修改密碼！\n登入網址：" + setting.siteLocation, // plain text body
           html: "<p>您好，您的帳號已經被重置了，系統預設密碼是：" + password + "</p><p>請記得在登入後修改密碼！</p><p>登入網址：<a href='" + setting.siteLocation + "' target='_blank' title='登入網址'>" + setting.siteLocation + "</a></p>", // html body
         });

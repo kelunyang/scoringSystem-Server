@@ -1,15 +1,15 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const dayjs = require('dayjs');
-const { ObjectId } = require('mongodb');
-const fs = require('fs-extra');
-const TurndownService = require('turndown')
-let _ = require('lodash');
+import dayjs from 'dayjs';
+import { ObjectId } from 'mongodb';
+import fs from 'fs-extra';
+import TurndownService from 'turndown';
+import _ from 'lodash';
 const turndownService = new TurndownService();
 const enableBroadcast = true;
 const disableBroadcast = false;
 
-module.exports = (io, models) => {
+export default function (io, models) {
   let getReadedIssues = async () => {
     let readedIssues = await models.readedIssueModel.find({
       user: new ObjectId(io.p2p.request.session.passport.user)
@@ -1525,7 +1525,19 @@ module.exports = (io, models) => {
       let user = await models.userModel.findOne({
         _id: userID
       }).exec();
+      let visibilityTags = _.map(await models.tagModel.find({
+        visibility: true
+      }).exec(), (item) => {
+        return item._id;
+      });
       let queryObj = [
+        {
+          $match: {
+            tag: {
+              $in: visibilityTags
+            }
+          }
+        },
         {
           $lookup: {
             from: 'stageDB',

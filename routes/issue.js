@@ -1,16 +1,15 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const dayjs = require('dayjs');
-const { ObjectId } = require('mongodb');
-const fs = require('fs-extra');
-const TurndownService = require('turndown')
-let _ = require('lodash');
-const e = require('express');
+import dayjs from 'dayjs';
+import { ObjectId } from 'mongodb';
+import fs from 'fs-extra';
+import TurndownService from 'turndown'
+import _ from 'lodash';
 const turndownService = new TurndownService();
 const enableBroadcast = true;
 const disableBroadcast = false;
 
-module.exports = (io, models) => {
+export default function (io, models) {
 
   let getissueList = async (data, mode) => {
     var collection = await models.issueModel.find({

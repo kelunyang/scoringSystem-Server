@@ -1,14 +1,18 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const dayjs = require('dayjs');
-const fs = require('fs-extra');
-const JSZip = require("jszip");
-const Papa = require('papaparse');
-const _ = require('lodash');
-const stripBOM = require('strip-bom');
-const mime = require('mime-types');
-const { ObjectId } = require('bson');
-const stream = require('stream');
+import dayjs from 'dayjs';
+import fs from 'fs-extra';
+import JSZip from "jszip";
+import Papa from 'papaparse';
+import _ from 'lodash';
+import stripBOM from 'strip-bom';
+import mime from 'mime-types';
+import { ObjectId } from 'bson';
+import stream from 'stream';
+import validator from 'validator';
+import bcrypt from 'bcryptjs';
+import nodemailer from "nodemailer";
+import concat from 'concat-stream';
 
 let files = {}, 
     struct = { 
@@ -19,7 +23,7 @@ let files = {},
         slice: 0, 
     };
 
-module.exports = (io, models) => {
+export default function (io, models) {
   io.p2p.on('deleteMsgFile', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       try {
@@ -657,6 +661,126 @@ module.exports = (io, models) => {
         };
       } else { 
         io.p2p.emit('requestKBstatisticsSlice', { 
+            currentSlice: files[data.uuid].slice,
+            uuid: data.uuid
+        }); 
+      } 
+    }
+    return;
+  });
+
+  io.p2p.on('importUserlist', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if (!files[data.uuid]) { 
+        files[data.uuid] = Object.assign({}, struct, data); 
+        files[data.uuid].data = [];
+      }
+      data.data = Buffer.from(new Uint8Array(data.data)); 
+      files[data.uuid].data.push(data.data); 
+      files[data.uuid].slice++;
+      if (files[data.uuid].slice * 100000 >= files[data.uuid].size) {
+        let fileBuffer = Buffer.concat(files[data.uuid].data);
+        try {
+          io.p2p.emit('userlistUploadDone');
+          let setting = await models.settingModel.findOne({}).exec();
+          let robotSetting = await models.robotModel.findOne({}).exec();
+          let now = dayjs().unix();
+          let readStream = new stream.PassThrough();
+          readStream.end(fileBuffer).pipe(concat((content) => {
+            Papa.parse(stripBOM(content.toString()), {
+              header: true,
+              skipEmptyLines: true,
+              complete: async (result) => {
+                try {
+                  let userDB = [];
+                  for(let i=0; i< result.data.length; i++) {
+                    let item = result.data[i];
+                    let user = {
+                      count: i,
+                      total: result.data.length,
+                      valid: false,
+                      name: item['姓名'],
+                      password: item['密碼'] === '' ? setting.defaultPassword : item['密碼'],
+                      unit: item['服務單位'],
+                      tags: [],
+                      email: item['email'],
+                      emailExist: false,
+                      emailInvalid: !validator.isEmail(item['email'])
+                    };
+                    io.p2p.emit('usercreateReport', user);
+                    if(!user.emailInvalid) {
+                      let foundUser = await models.userModel.findOne({ email: user.email }).exec();
+                      if(foundUser === null) {
+                        user.emailExist = false;
+                        let tagnames = _.split(item['群組標籤'], ',');
+                        for(let t=0; t<tagnames.length; t++) {
+                          let tagname = tagnames[t];
+                          let foundTag = await models.tagModel.findOne({ name: tagname }).exec();
+                          if(foundTag != null) {
+                            user.tags.push(foundTag);
+                          } else {
+                            let newTag = await models.tagModel.create({ 
+                              tick: now,
+                              modTick: 0,
+                              vis: true,
+                              name: tagname,
+                            });
+                            user.tags.push(newTag);
+                          }
+                        }
+                        await models.userModel.create({
+                          tags: _.map(user.tags, '_id'),
+                          types: 'human',
+                          name: user.name,
+                          unit: user.unit,
+                          email: user.email,
+                          createDate: now,
+                          modDate: now,
+                          firstRun: true,
+                          password: bcrypt.hashSync(user.password, bcrypt.genSaltSync(10)),
+                        });
+                        let transporter = nodemailer.createTransport({
+                          host: robotSetting.mailSMTP,
+                          port: robotSetting.mailPort,
+                          secure: robotSetting.mailSSL,
+                          auth: {
+                            user: robotSetting.mailAccount,
+                            pass: robotSetting.mailPassword,
+                          },
+                        });
+                        try {
+                          await transporter.sendMail({
+                            from: '"' + setting.systemName + '" <' + robotSetting.mailAccount + '>',
+                            to: user.email,
+                            subject: setting.systemName + "：帳號開通通知信",
+                            text: "您好，您的帳號已經開通，你的帳號就是你收到信的Email，系統預設密碼密碼是：" + user.password + "\n請記得在登入後修改密碼並填入相關資訊，最重要的是，登入後，請務必要綁定您LINE，我們才能通知您喔！\n登入網址：" + setting.siteLocation, // plain text body
+                            html: "<p>您好，您的帳號已經開通，你的帳號就是你收到信的Email，系統預設密碼是：" + user.password + "</p><p>請記得在登入後修改密碼並填入相關資訊，最重要的是，登入後，請務必要綁定您LINE，我們才能通知您喔！</p><p>登入網址：<a href='" + setting.siteLocation + "' target='_blank' title='登入網址'>" + setting.siteLocation + "</a></p>", // html body
+                          });
+                          user.valid = true;
+                        } catch(err) {
+                          console.dir(err);
+                        }
+                        user.valid = true;
+                      } else {
+                        user.emailExist = true;
+                      }
+                    }
+                    userDB.push(user);
+                  }
+                  return io.p2p.emit('userlistParsed', userDB); 
+                } catch (e) {
+                  console.dir(e);
+                }
+              }
+            });
+          }));
+          delete files[data.uuid];
+        } catch (err) {
+          console.dir(err);
+          return io.p2p.emit('userlistUploadError', JSON.stringify(err)); 
+        };
+      } else { 
+        io.p2p.emit('requestuserlistSlice', { 
             currentSlice: files[data.uuid].slice,
             uuid: data.uuid
         }); 

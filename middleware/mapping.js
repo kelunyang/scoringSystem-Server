@@ -1,6 +1,6 @@
-let _ = require('lodash');
+import _ from 'lodash';
 
-module.exports = async (models) => {
+export default async function (models) {
   let robotSettings = await models.robotModel.findOne({}).sort({_id: 1}).exec();
   let setting = await models.settingModel.findOne({}).sort({_id: 1}).exec();
   return  {
@@ -782,6 +782,24 @@ module.exports = async (models) => {
     listKBLog: {
       action: 'dashboard下載知識點編輯紀錄',
       where: '知識點模組',
+      authRange: [],
+      loginRequire: true
+    },
+    setTagname: {
+      action: '修改標籤名稱',
+      where: '標籤模組',
+      authRange: [],
+      loginRequire: true
+    },
+    setTagvis: {
+      action: '修改標籤狀態',
+      where: '標籤模組',
+      authRange: [],
+      loginRequire: true
+    },
+    importUserlist: {
+      action: '匯入使用者清單',
+      where: '使用者模組',
       authRange: [],
       loginRequire: true
     }

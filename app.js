@@ -1,48 +1,77 @@
 //載入library
-const express = require('express');
-const path = require('path');
-const logger = require('morgan');
-const mongoose = require('mongoose');
-const dayjs = require('dayjs');
-const passport = require('passport');
-const LocalStrategy = require('passport-local').Strategy;
-let session = require('express-session');
-const fs = require('fs-extra');
+import http from 'http';
+import { Server } from 'socket.io';
+import express from 'express';
+import path from 'path';
+import logger from 'morgan';
+import mongoose from 'mongoose';
+import dayjs from 'dayjs';
+import passport from 'passport';
+import * as passportlocal from 'passport-local';
+const LocalStrategy = passportlocal.Strategy;
+import session from 'express-session';
+import fs from 'fs-extra';
 let mongoDBConnector = fs.readJsonSync('./mongoDBConnector.json');
 const mongoDB = 'mongodb://' + mongoDBConnector.account + ':' + mongoDBConnector.password + '@' + mongoDBConnector.host + '/' + mongoDBConnector.DBname;
-const MongoStore = require('connect-mongo')(session);
-const bcrypt = require('bcryptjs');
-const authSocket = require('./middleware/authSocket');
-const { ObjectId } = require('mongodb');
+import connectMongo from 'connect-mongo';
+const MongoStore = connectMongo(session);
+import bcrypt from 'bcryptjs';
+import authSocket from './middleware/authSocket.js';
+import { ObjectId } from 'mongodb';
 let mongoPointer = false;
 let aliveTimer = null;
 let userAlived = true;
 let tempPassport = null;
+let sessionInUse = null;
+let aliverTimer = null;
 
 //model
-const settingModel = require('./models/globalModel')(mongoose);
-const projectModel = require('./models/projectModel')(mongoose);
-const robotModel = require('./models/robotModel')(mongoose);
-const systemmessageModel = require('./models/messageModel')(mongoose);
-const tagModel = require('./models/tagModel')(mongoose);
-const userModel = require('./models/userModel')(mongoose);
-const logModel = require('./models/logModel')(mongoose);
-const lineModel = require('./models/lineModel')(mongoose);
-const broadcastModel = require('./models/broadcastModel')(mongoose);
-const fileModel = require('./models/fileModel')(mongoose);
-const feedbackModel = require('./models/feedbackModel')(mongoose);
-const activeuserModel = require('./models/activeuserModel')(mongoose);
-const sessionModel = require('./models/sessionModel')(mongoose);
-const eventlogModel = require('./models/eventlogModel')(mongoose);
-const issueModel = require('./models/issueModel')(mongoose);
-const KBModel = require('./models/KBModel')(mongoose);
-const chapterModel = require('./models/chapterModel')(mongoose);
-const stageModel = require('./models/stageModel')(mongoose);
-const objectiveModel = require('./models/objectiveModel')(mongoose);
-const readedIssueModel = require('./models/readedIssueModel')(mongoose);
-const statisticsKBModel = require('./models/statisticsKBModel')(mongoose);
-const readedVersionModel = require('./models/readedVersionModel')(mongoose);
-const notifytemplateModel = require('./models/notifytemplateModel')(mongoose);
+import settingMJS from './models/globalModel.js';
+import projectMJS from './models/projectModel.js';
+import robotMJS from './models/robotModel.js';
+import messageMJS from './models/messageModel.js';
+import tagMJS from './models/tagModel.js';
+import userMJS from './models/userModel.js';
+import logMJS from './models/logModel.js';
+import lineMJS from './models/lineModel.js';
+import broadcastMJS from './models/broadcastModel.js';
+import fileMJS from './models/fileModel.js';
+import feedbackMJS from './models/feedbackModel.js';
+import activeuserMJS from './models/activeuserModel.js';
+import sessionMJS from './models/sessionModel.js';
+import eventlogMJS from './models/eventlogModel.js';
+import issueMJS from './models/issueModel.js';
+import KBMJS from './models/KBModel.js';
+import chapterMJS from './models/chapterModel.js';
+import stageMJS from './models/stageModel.js';
+import objectiveMJS from './models/objectiveModel.js';
+import readedIssueMJS from './models/readedIssueModel.js';
+import statisticsKBMJS from './models/statisticsKBModel.js';
+import readedVersionMJS from './models/readedVersionModel.js';
+import notifytemplateMJS from './models/notifytemplateModel.js';
+const settingModel = settingMJS(mongoose);
+const projectModel = projectMJS(mongoose);
+const robotModel = robotMJS(mongoose);
+const systemmessageModel = messageMJS(mongoose);
+const tagModel = tagMJS(mongoose);
+const userModel = userMJS(mongoose);
+const logModel = logMJS(mongoose);
+const lineModel = lineMJS(mongoose);
+const broadcastModel = broadcastMJS(mongoose);
+const fileModel = fileMJS(mongoose);
+const feedbackModel = feedbackMJS(mongoose);
+const activeuserModel = activeuserMJS(mongoose);
+const sessionModel = sessionMJS(mongoose);
+const eventlogModel = eventlogMJS(mongoose);
+const issueModel = issueMJS(mongoose);
+const KBModel = KBMJS(mongoose);
+const chapterModel = chapterMJS(mongoose);
+const stageModel = stageMJS(mongoose);
+const objectiveModel = objectiveMJS(mongoose);
+const readedIssueModel = readedIssueMJS(mongoose);
+const statisticsKBModel = statisticsKBMJS(mongoose);
+const readedVersionModel = readedVersionMJS(mongoose);
+const notifytemplateModel = notifytemplateMJS(mongoose);
 const modelList = {
     messageModel: systemmessageModel,
     logModel: logModel,
@@ -69,10 +98,22 @@ const modelList = {
     notifytemplateModel: notifytemplateModel
 };
 
+//controller
+import backendController from './routes/backend.js';
+import settingsController from './routes/settings.js';
+import tagsController from './routes/tags.js';
+import messageController from './routes/message.js';
+import fileController from './routes/file.js';
+import feedbackController from './routes/feedback.js';
+import issueController from './routes/issue.js';
+import KBController from './routes/KB.js';
+import statisticsController from './routes/statistics.js';
+import userController from './routes/users.js';
+
 //掛載socketio, 啟動express
-const app = require('express')();
-const server = require('http').createServer(app);
-const io = require('socket.io')(server);
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
 
 app.use(logger('dev'));
 app.use(express.json());
@@ -98,15 +139,15 @@ try {
     mongoose.connection.once('open', () => {
         if (!mongoPointer) {
             mongoPointer = true;
-            session = session({
+            sessionInUse = session({
                 secret: 'coocReview',
                 store: new MongoStore({ mongooseConnection: mongoose.connection }),
                 resave: true,
                 saveUninitialized: true
             });
-            app.use(session);
+            app.use(sessionInUse);
             io.use(function(socket, next) {
-                session(socket.request, {}, next);
+                sessionInUse(socket.request, {}, next);
             });
             app.use(passport.session());
             passport.use(new LocalStrategy({
@@ -141,7 +182,7 @@ try {
                 })
             })
             
-            let backend = require('./routes/backend')(app, passport, modelList);
+            let backend = backendController(app, passport, modelList);
             app.use('/backend', backend);
         }
         
@@ -222,39 +263,39 @@ try {
                     socket.emit('dbStatus', mongoose.connection.readyState === 1);
                 });
         
-                let users = require('./routes/users')({
+                let users = userController({
                     p2p: socket,
                     p2n: io
                 }, modelList);
-                let settings = require('./routes/settings')({
+                let settings = settingsController({
                     p2p: socket,
                     p2n: io
                 }, modelList);
-                let tags = require('./routes/tags')({
+                let tags = tagsController({
                     p2p: socket,
                     p2n: io
                 }, modelList);
-                let message = require('./routes/message')({
+                let message = messageController({
                     p2p: socket,
                     p2n: io
                 }, modelList);
-                let file = require('./routes/file')({
+                let file = fileController({
                     p2p: socket,
                     p2n: io
                 }, modelList);
-                let feedback = require('./routes/feedback')({
+                let feedback = feedbackController({
                     p2p: socket,
                     p2n: io
                 }, modelList);
-                let issue = require('./routes/issue')({
+                let issue = issueController({
                     p2p: socket,
                     p2n: io
                 }, modelList);
-                let KB = require('./routes/KB')({
+                let KB = KBController({
                     p2p: socket,
                     p2n: io
                 }, modelList);
-                let statistics = require('./routes/statistics')({
+                let statistics = statisticsController({
                     p2p: socket,
                     p2n: io
                 }, modelList);

@@ -1,10 +1,10 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const dayjs = require('dayjs');
-const _ = require('lodash');
-const { ObjectId } = require('bson');
+import dayjs from 'dayjs';
+import _ from 'lodash';
+import { ObjectId } from 'bson';
 
-module.exports = (io, models) => {
+export default function (io, models) {
   io.p2p.on('periodKBStatistics', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       let range = data.type === 0 ? '%Y-%m-%d' : data.type === 1 ? '%Y-%m' : '%Y';

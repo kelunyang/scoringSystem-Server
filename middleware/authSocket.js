@@ -1,10 +1,11 @@
-const dayjs = require('dayjs');
-const { ObjectId } = require('mongodb');
-const _ = require('lodash');
+import dayjs from 'dayjs';
+import { ObjectId } from 'mongodb';
+import _ from 'lodash';
+import mapping from './mapping.js';
 
-module.exports = async (socket, models, [event], next) => {
+export default async function (socket, models, [event], next) {
     //console.log("socket event:" + event);
-    const authMapping = await require('./mapping')(models);
+    const authMapping = await mapping(models);
     let action = authMapping[event];
     let ma = undefined;
     try {

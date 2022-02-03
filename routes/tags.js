@@ -1,10 +1,10 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const dayjs = require('dayjs');
-const { ObjectId } = require('mongodb');
-const _ = require('lodash');
+import dayjs from 'dayjs';
+import { ObjectId } from 'mongodb';
+import _ from 'lodash';
 
-module.exports = (io, models) => {
+export default function (io, models) {
   let getTags = async () => {
     let tags = [];
     if('passport' in io.p2p.request.session) {
@@ -55,6 +55,8 @@ module.exports = (io, models) => {
       if(tag.length === 0) {
         await models.tagModel.create({ 
           tick: dayjs().unix(),
+          modTick: 0,
+          vis: true,
           name: data,
         });
         io.p2p.emit('addTag', true);
@@ -63,6 +65,39 @@ module.exports = (io, models) => {
         io.p2p.emit('addTag', false);
         await getTags();
       }
+    }
+    return;
+  });
+
+  io.p2p.on('setTagname', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      let now = dayjs().unix();
+      let tag = await models.tagModel.findOne({ 
+        _id: new ObjectId(data._id)
+      }).exec();
+      tag.modTick = now;
+      tag.name = data.name;
+      await tag.save();
+      io.p2p.emit('setTag', true);
+      await getTags();
+    }
+    return;
+  });
+
+  io.p2p.on('setTagvis', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      let now = dayjs().unix();
+      let tags = _.map(data.tags, (item) => {
+        return new ObjectId(item);
+      });
+      let tag = await models.tagModel.updateMany({
+        _id: { $in: tags }
+      }, {
+        visibility: data.vis,
+        modTick: now
+      });
+      io.p2p.emit('setTagvis', true);
+      await getTags();
     }
     return;
   });

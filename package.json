@@ -5,10 +5,13 @@
   "scripts": {
     "start": "node --inspect ./app.js"
   },
+  "type": "module",
   "dependencies": {
     "axios": "^0.21.1",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.19.0",
+    "bson": "^4.6.1",
+    "concat-stream": "^2.0.0",
     "connect-mongo": "^3.2.0",
     "connect-mongodb-session": "^2.4.1",
     "cookie-parser": "~1.4.4",
@@ -25,7 +28,7 @@
     "lodash": "^4.17.21",
     "mime-types": "^2.1.29",
     "moment": "^2.29.1",
-    "mongodb": "^3.6.3",
+    "mongodb": "^4.3.1",
     "mongoose": "^5.11.15",
     "morgan": "~1.9.1",
     "nodemailer": "^6.4.18",
@@ -34,9 +37,11 @@
     "passport-local": "^1.0.0",
     "promisify-child-process": "^4.1.1",
     "qs": "^6.5.2",
+    "remove-bom-stream": "^1.2.0",
     "socket.io": "^3.1.0",
     "strip-bom": "^4.0.0",
+    "strip-bom-stream": "^4.0.0",
     "turndown": "^7.0.0",
-    "validator": "^13.5.2"
+    "validator": "^13.7.0"
   }
 }

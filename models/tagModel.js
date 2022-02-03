@@ -1,10 +1,12 @@
-const { ObjectID } = require("mongodb");
+import { ObjectID } from 'mongodb';
 
-module.exports = function (mongoose) {
+export default function (mongoose) {
     let schema = mongoose.Schema;
     let tagSchema = new schema({
         name: String,
-        tick: Number
+        tick: Number,
+        modTick: Number,
+        visibility: Boolean
     }, { collection: 'tagDB' });
     return mongoose.model('tagModel', tagSchema);
 }

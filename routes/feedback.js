@@ -1,14 +1,14 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const dayjs = require('dayjs');
-const { ObjectId } = require('mongodb');
-const fs = require('fs-extra');
-const TurndownService = require('turndown')
+import dayjs from 'dayjs';
+import { ObjectId } from 'mongodb';
+import fs from 'fs-extra';
+import TurndownService from 'turndown';
 const turndownService = new TurndownService();
-const _ = require('lodash');
-module.exports = (io, models) => {
+import _ from 'lodash';
+export default function (io, models) {
 
-  getfeedbackList = async() => {
+  let getfeedbackList = async() => {
     var collection = await models.feedbackModel.find({
       parent: undefined
     }).sort({
@@ -24,7 +24,7 @@ module.exports = (io, models) => {
     io.p2p.emit('getfeedbackList', collection);
   }
 
-  getFeedback = async(data) => {
+  let getFeedback = async(data) => {
     var main = await models.feedbackModel.findOne({
       _id: new ObjectId(data)
     }).sort({tick: -1})

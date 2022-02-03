@@ -1,6 +1,6 @@
-const { ObjectID } = require("mongodb");
+import { ObjectID } from 'mongodb';
 
-module.exports = function (mongoose) {
+export default function (mongoose) {
     let schema = mongoose.Schema;
     let eventlogSchema = new schema({
         tick: Number,

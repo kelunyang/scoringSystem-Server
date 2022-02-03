@@ -1,15 +1,14 @@
-let express = require('express');
+import express from 'express';
 let router = express.Router();
-const dayjs = require('dayjs');
-let axios = require('axios');
-let qs = require('qs');
-let os = require('os');
-let _ = require('lodash');
-const { ObjectId } = require('mongodb');
-const { spawn } = require("child_process");
-let v2ray = null;
+import dayjs from 'dayjs';
+import axios from 'axios';
+import qs from 'qs';
+import os from 'os';
+import _ from 'lodash';
+import { ObjectId } from 'mongodb';
+import { spawn } from "child_process";
 
-module.exports = (io, models) => {
+export default function (io, models) {
   io.p2p.on('getsiteSetting', async (data) => {
     let globalSetting = await models.settingModel.findOne({}).exec();
     let robotSettings = await models.robotModel.findOne({}).exec();

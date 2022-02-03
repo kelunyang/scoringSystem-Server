@@ -1,12 +1,13 @@
-const dayjs = require('dayjs');
-const { ObjectId } = require('mongodb');
-const _ = require('lodash');
+import dayjs from 'dayjs';
+import { ObjectId } from 'mongodb';
+import _ from 'lodash';
+import mapping from './mapping.js';
 
-module.exports = (models) => {
+export default function (models) {
     return async (req, res, next) => {
         //console.log("http event:" + req.path);
         const reqLocation = req.path.replace('/', '');
-        const authMapping = await require('./mapping')(models);
+        const authMapping = await mapping(models);
         let action = authMapping[reqLocation];
         let ma = undefined;
         if(req.session.hasOwnProperty('passport')) {
