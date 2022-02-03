@@ -722,7 +722,7 @@ export default function (io, models) {
                             let newTag = await models.tagModel.create({ 
                               tick: now,
                               modTick: 0,
-                              vis: true,
+                              visibility: true,
                               name: tagname,
                             });
                             user.tags.push(newTag);

@@ -56,7 +56,7 @@ export default function (io, models) {
         await models.tagModel.create({ 
           tick: dayjs().unix(),
           modTick: 0,
-          vis: true,
+          visibility: true,
           name: data,
         });
         io.p2p.emit('addTag', true);
