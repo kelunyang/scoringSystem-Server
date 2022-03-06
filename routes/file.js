@@ -13,6 +13,7 @@ import validator from 'validator';
 import bcrypt from 'bcryptjs';
 import nodemailer from "nodemailer";
 import concat from 'concat-stream';
+import generator from 'generate-password';
 
 let files = {}, 
     struct = { 
@@ -695,12 +696,28 @@ export default function (io, models) {
                   let userDB = [];
                   for(let i=0; i< result.data.length; i++) {
                     let item = result.data[i];
+                    let password = '';
+                    if(item['密碼'] === '') {
+                      if(setting.randomNewbiePass) {
+                        password = generator.generate({
+                          length: setting.newbiepassLength,
+                          numbers: true,
+                          symbols: true,
+                          excludeSimilarCharacters: true,
+                          strict: true
+                        });
+                      } else {
+                        password = setting.defaultPassword
+                      }
+                    } else {
+                      password = item['密碼'];
+                    }
                     let user = {
                       count: i,
                       total: result.data.length,
                       valid: false,
                       name: item['姓名'],
-                      password: item['密碼'] === '' ? setting.defaultPassword : item['密碼'],
+                      password: password,
                       unit: item['服務單位'],
                       tags: [],
                       email: item['email'],

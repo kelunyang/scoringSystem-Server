@@ -1,2 +1,2 @@
-# VideoPlatform-Server
- 台北市影片審查平台後端系統
+# scoringSystem-Server
+ 線上評分系統後台，本系統設計目的在於讓參與者自行評分

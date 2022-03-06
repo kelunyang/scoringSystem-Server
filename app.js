@@ -27,7 +27,6 @@ let aliverTimer = null;
 
 //model
 import settingMJS from './models/globalModel.js';
-import projectMJS from './models/projectModel.js';
 import robotMJS from './models/robotModel.js';
 import messageMJS from './models/messageModel.js';
 import tagMJS from './models/tagModel.js';
@@ -39,18 +38,16 @@ import fileMJS from './models/fileModel.js';
 import feedbackMJS from './models/feedbackModel.js';
 import activeuserMJS from './models/activeuserModel.js';
 import sessionMJS from './models/sessionModel.js';
-import eventlogMJS from './models/eventlogModel.js';
-import issueMJS from './models/issueModel.js';
-import KBMJS from './models/KBModel.js';
-import chapterMJS from './models/chapterModel.js';
-import stageMJS from './models/stageModel.js';
-import objectiveMJS from './models/objectiveModel.js';
-import readedIssueMJS from './models/readedIssueModel.js';
-import statisticsKBMJS from './models/statisticsKBModel.js';
-import readedVersionMJS from './models/readedVersionModel.js';
 import notifytemplateMJS from './models/notifytemplateModel.js';
+import accountingMJS from './models/accountingModel.js';
+import auditMJS from './models/auditModel.js';
+import groupMJS from './models/groupModel.js';
+import reportMJS from './models/reportModel.js';
+import schemaMJS from './models/schemaModel.js';
+import stageMJS from './models/stageModel.js';
+import eventlogMJS from './models/eventlogModel.js';
+const eventlogModel = eventlogMJS(mongoose);
 const settingModel = settingMJS(mongoose);
-const projectModel = projectMJS(mongoose);
 const robotModel = robotMJS(mongoose);
 const systemmessageModel = messageMJS(mongoose);
 const tagModel = tagMJS(mongoose);
@@ -62,21 +59,17 @@ const fileModel = fileMJS(mongoose);
 const feedbackModel = feedbackMJS(mongoose);
 const activeuserModel = activeuserMJS(mongoose);
 const sessionModel = sessionMJS(mongoose);
-const eventlogModel = eventlogMJS(mongoose);
-const issueModel = issueMJS(mongoose);
-const KBModel = KBMJS(mongoose);
-const chapterModel = chapterMJS(mongoose);
-const stageModel = stageMJS(mongoose);
-const objectiveModel = objectiveMJS(mongoose);
-const readedIssueModel = readedIssueMJS(mongoose);
-const statisticsKBModel = statisticsKBMJS(mongoose);
-const readedVersionModel = readedVersionMJS(mongoose);
 const notifytemplateModel = notifytemplateMJS(mongoose);
+const stageModel = stageMJS(mongoose);
+const schemaModel = schemaMJS(mongoose);
+const reportModel = reportMJS(mongoose);
+const groupModel = groupMJS(mongoose);
+const auditModel = auditMJS(mongoose);
+const accountingModel = accountingMJS(mongoose);
 const modelList = {
     messageModel: systemmessageModel,
     logModel: logModel,
     settingModel: settingModel,
-    projectModel: projectModel,
     robotModel: robotModel,
     userModel: userModel,
     tagModel: tagModel,
@@ -86,16 +79,14 @@ const modelList = {
     feedbackModel: feedbackModel,
     activeuserModel: activeuserModel,
     sessionModel: sessionModel,
-    KBModel: KBModel,
-    issueModel: issueModel,
-    eventlogModel: eventlogModel,
+    notifytemplateModel: notifytemplateModel,
     stageModel: stageModel,
-    chapterModel: chapterModel,
-    objectiveModel: objectiveModel,
-    readedIssueModel: readedIssueModel,
-    statisticsKBModel: statisticsKBModel,
-    readedVersionModel: readedVersionModel,
-    notifytemplateModel: notifytemplateModel
+    schemaModel: schemaModel,
+    reportModel: reportModel,
+    groupModel: groupModel,
+    auditModel: auditModel,
+    accountingModel: accountingModel,
+    eventlogModel: eventlogModel
 };
 
 //controller
@@ -105,10 +96,11 @@ import tagsController from './routes/tags.js';
 import messageController from './routes/message.js';
 import fileController from './routes/file.js';
 import feedbackController from './routes/feedback.js';
-import issueController from './routes/issue.js';
-import KBController from './routes/KB.js';
-import statisticsController from './routes/statistics.js';
 import userController from './routes/users.js';
+import schemaController from './routes/schema.js';
+import accountingController from './routes/accounting.js';
+import groupController from './routes/group.js';
+import reportController from './routes/report.js';
 
 //掛載socketio, 啟動express
 const app = express();
@@ -287,15 +279,19 @@ try {
                     p2p: socket,
                     p2n: io
                 }, modelList);
-                let issue = issueController({
+                let report = reportController({
                     p2p: socket,
                     p2n: io
                 }, modelList);
-                let KB = KBController({
+                let group = groupController({
                     p2p: socket,
                     p2n: io
                 }, modelList);
-                let statistics = statisticsController({
+                let accounting = accountingController({
+                    p2p: socket,
+                    p2n: io
+                }, modelList);
+                let schema = schemaController({
                     p2p: socket,
                     p2n: io
                 }, modelList);
@@ -305,9 +301,10 @@ try {
                 app.use('/tags', tags);
                 app.use('/file', file);
                 app.use('/feedback', feedback);
-                app.use('/issue', issue);
-                app.use('/KB', KB);
-                app.use('/statistics', statistics);
+                app.use('/report', report);
+                app.use('/accounting', accounting);
+                app.use('/group', group);
+                app.use('/schema', schema);
             } catch (e) {
                 console.dir(e);
                 let stack = [];

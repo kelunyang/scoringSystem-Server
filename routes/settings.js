@@ -144,6 +144,7 @@ export default function (io, models) {
     if(io.p2p.request.session.status.type === 3) {
       let gSetting = await models.settingModel.findOne({}).exec();
       gSetting.defaultPassword = data.defaultPassword;
+      gSetting.restrictTags = data.restrictTags.length > 0 ? data.restrictTags : gSetting.restrictTags;
       gSetting.settingTags = data.selectedSysTags.length > 0 ? data.selectedSysTags : gSetting.settingTags;
       gSetting.userTags = data.selectedUsrTags.length > 0 ? data.selectedUsrTags : gSetting.userTags;
       gSetting.projectTags = data.selectedflowTags.length > 0 ? data.selectedflowTags : gSetting.projectTags;
@@ -161,6 +162,7 @@ export default function (io, models) {
       gSetting.backendRepo = data.backendRepo;
       gSetting.botRepo = data.botRepo;
       gSetting.storageLocation = data.storageLocation;
+      gSetting.randomNewbiePass = data.randomNewbiePass;
       gSetting.tick = dayjs().unix();
       gSetting.systemName = data.systemName;
       await gSetting.save();

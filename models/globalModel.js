@@ -4,6 +4,14 @@ export default function (mongoose) {
   let schema = mongoose.Schema;
   let globalSettingSchema =  new schema({
     defaultPassword: String,
+    randomNewbiePass: Boolean,
+    newbiepassLength: Number,
+    restrictTags: [
+      {
+        type: ObjectID,
+        ref: "tagModel"
+      }
+    ],
     settingTags: [
       {
         type: ObjectID,

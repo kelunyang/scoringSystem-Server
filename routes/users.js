@@ -6,6 +6,8 @@ import { ObjectId } from 'mongodb';
 import nodemailer from "nodemailer";
 import _ from 'lodash';
 import frontTable from '../middleware/frontendAuth.js';
+import generator from 'generate-password';
+
 const APPENDMODE = false;
 
 export default function (io, models) {
@@ -188,77 +190,6 @@ export default function (io, models) {
     return;
   });
 
-  /*io.p2p.on('createUsers', async (data) => {
-    if(io.p2p.request.session.status.type === 3) {
-      let robotSetting = await models.robotModel.findOne({}).exec();
-      let setting = await models.settingModel.findOne({}).exec();
-      let password = setting.defaultPassword;
-      let count = 0;
-      let emailDB = await models.userModel.aggregate([
-        {
-          $group: {
-            _id: null,
-            emails: {
-              $addToSet: '$email'
-            }
-          }
-        }
-      ]);
-      let emails = emailDB[0].emails;
-      let emailAwaited = _.differenceWith(data.email, emails, (aMail, dbMail) => {
-          return aMail === dbMail;
-      });
-      for(let i=0; i<emailAwaited.length; i++) {
-        let proceeingMail = emailAwaited[i];
-        if(validator.isEmail(proceeingMail)) {
-          let tags = await availableTags(_.map(data.tags, (tag) => {
-            return new ObjectId(tag);
-          }));
-          let currentTick = dayjs().unix();
-          await models.userModel.create({
-            tags: tags,
-            types: 'human',
-            name: '請輸入姓名',
-            unit: '請輸入你的服務單位',
-            email: proceeingMail,
-            createDate: currentTick,
-            modDate: currentTick,
-            firstRun: true,
-            password: bcrypt.hashSync(password, bcrypt.genSaltSync(10)),
-          });
-          let transporter = nodemailer.createTransport({
-            host: robotSetting.mailSMTP,
-            port: robotSetting.mailPort,
-            secure: robotSetting.mailSSL,
-            auth: {
-              user: robotSetting.mailAccount,
-              pass: robotSetting.mailPassword,
-            },
-          });
-          try {
-            await transporter.sendMail({
-              from: '"臺北市學科影片審查系統" <kelunyang@outlook.com>',
-              to: proceeingMail,
-              subject: "臺北市學科影片審查系統：帳號開通通知信",
-              text: "您好，您的帳號已經開通，你的帳號就是你收到信的Email，系統預設密碼密碼是：" + password + "\n請記得在登入後修改密碼並填入相關資訊，最重要的是，登入後，請務必要綁定您LINE，我們才能通知您喔！\n登入網址：" + setting.siteLocation, // plain text body
-              html: "<p>您好，您的帳號已經開通，你的帳號就是你收到信的Email，系統預設密碼是：" + password + "</p><p>請記得在登入後修改密碼並填入相關資訊，最重要的是，登入後，請務必要綁定您LINE，我們才能通知您喔！</p><p>登入網址：<a href='" + setting.siteLocation + "' target='_blank' title='登入網址'>" + setting.siteLocation + "</a></p>", // html body
-            });
-          } catch(err) {
-            io.p2p.emit('createUsersReport', proceeingMail + '帳號建立錯誤');
-          }
-          io.p2p.emit('createUsersReport', proceeingMail + '帳號建立完成');
-          count++;
-        }
-      }
-      io.p2p.emit('createUsers', {
-        planned: data.email.length,
-        processed: count
-      });
-      getUsers();
-    }
-    return;
-  });*/
-
   io.p2p.on('passwordClientReset', async (data) => {
     let user = await models.userModel.findOne({
       email: data
@@ -270,7 +201,18 @@ export default function (io, models) {
     } else {
       let setting = await models.settingModel.findOne({}).exec();
       let robotSetting = await models.robotModel.findOne({}).exec();
-      let password = setting.defaultPassword;
+      let password = '';
+      if(setting.randomNewbiePass) {
+        password = generator.generate({
+          length: setting.newbiepassLength,
+          numbers: true,
+          symbols: true,
+          excludeSimilarCharacters: true,
+          strict: true
+        });
+      } else {
+        password = setting.defaultPassword
+      }
       user.password = bcrypt.hashSync(password, bcrypt.genSaltSync(10));
       user.firstRun = true;
       await user.save();
@@ -285,9 +227,9 @@ export default function (io, models) {
       });
       try {
         let info = await transporter.sendMail({
-          from: '"臺北市學科影片審查系統" <kelunyang@outlook.com>',
+          from: '"' + setting.systemName + '" <' + robotSetting.mailAccount + '>',
           to: user.email,
-          subject: "臺北市學科影片審查系統：帳號密碼重置通知信",
+          subject: setting.systemName + "：帳號密碼重置通知信",
           text: "您好，您的密碼已經被重置了，系統預設密碼是：" + password + "\n請記得在登入後修改密碼！\n登入網址：" + setting.siteLocation, // plain text body
           html: "<p>您好，您的帳號已經被重置了，系統預設密碼是：" + password + "</p><p>請記得在登入後修改密碼！</p><p>登入網址：<a href='" + setting.siteLocation + "' target='_blank' title='登入網址'>" + setting.siteLocation + "</a></p>", // html body
         });
@@ -308,7 +250,18 @@ export default function (io, models) {
       let user = await models.userModel.findOne({
         _id: new ObjectId(data)
       }).exec();
-      let password = setting.defaultPassword;
+      let password = '';
+      if(setting.randomNewbiePass) {
+        password = generator.generate({
+          length: setting.newbiepassLength,
+          numbers: true,
+          symbols: true,
+          excludeSimilarCharacters: true,
+          strict: true
+        });
+      } else {
+        password = setting.defaultPassword
+      }
       user.password = bcrypt.hashSync(password, bcrypt.genSaltSync(10));
       user.firstRun = true;
       await user.save();
@@ -346,7 +299,6 @@ export default function (io, models) {
       let user = await models.userModel.findOne({
         _id: new ObjectId(data._id)
       }).exec();
-      user.unit = data.unit;
       let newTags = await availableTags(_.map(data.tags, (item) => {
         return new ObjectId(item);
       }));
@@ -370,8 +322,27 @@ export default function (io, models) {
         }
       }
       user.tags = newTags;
+      let restricted = _.intersectionWith(setting.restrictTags, user.tags, (sTag, dTag) => {
+        return sTag.equals(dTag);
+      });
+      let currentUser =  await models.userModel.findOne({
+        _id: new ObjectId(io.p2p.request.session.passport.user)
+      }).exec();
+      let authorized = _.intersectionWith(setting.settingTags, currentUser.tags, (sTag, dTag) => {
+        return sTag.equals(dTag);
+      });
       user.modDate = dayjs().unix();
-      user.name = data.name;
+      if(io.p2p.request.session.passport.user === data._id) {
+        if(restricted.length === 0 ) { 
+          user.name = data.name;
+          user.unit = data.unit;
+        }
+      } else {
+        if(authorized.length > 0) {
+          user.name = data.name;
+          user.unit = data.unit;
+        }
+      }
       user.types = data.types;
       user.firstRun = false;
       await user.save();
@@ -401,10 +372,26 @@ export default function (io, models) {
             email: 'undefined@undefined.com',
             createDate: 0,
             modDate: 0,
-            lineDate: 0
+            lineDate: 0,
+            restricted: true
           });
         } else {
-          return io.p2p.emit('getCurrentUser', user);
+          let setting = await models.settingModel.findOne({}).exec();
+          let restricted = _.intersectionWith(setting.restrictTags, user.tags, (sTag, dTag) => {
+            return sTag.equals(dTag);
+          });
+          return io.p2p.emit('getCurrentUser', {
+            _id: user._id,
+            tags: user.tags,
+            types: user.types,
+            name: user.name,
+            unit: user.unit,
+            email: user.email,
+            createDate: user.createDate,
+            modDate: user.modDate,
+            lineDate: user.lineDate,
+            restricted: restricted.length > 0
+          });
         }
       }
     }
@@ -417,26 +404,47 @@ export default function (io, models) {
       email: 'undefined@undefined.com',
       createDate: 0,
       modDate: 0,
-      lineDate: 0
+      lineDate: 0,
+      restricted: true
     });
+    return;
+  });
+
+  io.p2p.on('getSelectedUsers', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if(data.users.length > 0) {
+        let users = await models.userModel.find({
+          _id: { $in: data.users }
+        }).select('-password -lineToken -lineCode').exec();
+        io.p2p.emit('getSelectedUsers', {
+          users: users,
+          type: data.type
+        });
+      }
+    }
     return;
   });
 
   io.p2p.on('getTagUsers', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let settingTags = [];
+      let tags = undefined;
       if(data === undefined) {
         let setting = await models.settingModel.findOne({}).exec();
-        settingTags = setting.robotTag;
+        tags = setting.robotTag;
       } else {
-        settingTags = _.map(data, (item) => {
-          return new ObjectId(item);
+        tags = _.map(data, (tag) => {
+          return new ObjectId(tag);
         });
       }
-      let users = await models.userModel.find({
-        tags: { $in: settingTags }
-      }).exec();
-      io.p2p.emit('getTagUsers', users);
+      if(tags !== undefined) {
+        let users = await models.userModel.find({
+          tags: { $in: tags }
+        }).select('-password -lineToken -lineCode').exec();
+        io.p2p.emit('getTagUsers', {
+          result: users,
+          query: data
+        });
+      }
     }
     return;
   });
@@ -453,9 +461,14 @@ export default function (io, models) {
       let user = await models.userModel.findOne({
         _id: new ObjectId(io.p2p.request.session.passport.user)
       }).exec();
-      user.name = data.name;
+      let restricted = _.intersectionWith(setting.restrictTags, user.tags, (sTag, dTag) => {
+        return sTag.equals(dTag);
+      });
+      if(restricted.length === 0) { 
+        user.name = data.name;
+        user.unit = data.unit;
+      }
       user.types = data.types;
-      user.unit = data.unit;
       user.firstRun = false;
       user.modDate = dayjs().unix();
       if(data.password !== '') {
@@ -599,6 +612,33 @@ export default function (io, models) {
             }
           }
           if(proceed) {
+            let uid = new ObjectId(user._id);
+            await models.accountingModel.deleteMany({
+              uid: uid
+            }).exec();
+            let memberGroups = await models.groupModel.find({
+              $or:[ 
+                {leaders: { $in: [uid] }},
+                {members: { $in: [uid] }}
+              ]
+            }).exec();
+            let leaderGroups = await models.groupModel.find({
+              leaders: { $in: [uid] }
+            }).exec();
+            for(let i=0; i<memberGroups.length; i++) {
+              let group = memberGroups[i];
+              group.members = _.filter(group.members, (member) => {
+                return !member._id.equals(uid);
+              })
+              await group.save();
+            }
+            for(let i=0; i<leaderGroups.length; i++) {
+              let group = leaderGroups[i];
+              group.leaders = _.filter(group.leaders, (leaders) => {
+                return !leaders._id.equals(uid);
+              })
+              await group.save();
+            }
             await models.userModel.deleteOne({
               _id: new ObjectId(user._id)
             }).exec();

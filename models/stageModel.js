@@ -1,57 +1,28 @@
 import { ObjectID } from 'mongodb';
 
 export default function (mongoose) {
-    let schema = mongoose.Schema;
-    let stageSchema = new schema({
-        createDate: Number,
-        modDate: Number,
-        current: Boolean,
-        name: String,
-        dueTick: Number,
-        passTick: Number,
-        startTick: Number,
-        sort: Number,
-        coolDown: Boolean,
-        objectives: [
-            {
-                type: ObjectID,
-                ref: 'objectiveModel'
-            }
-        ],
-        KB: {
-            type: ObjectID,
-            ref: 'KBModel'
-        },
-        pmTags: [
-            {
-                type: ObjectID,
-                ref: "tagModel"
-            }
-        ],
-        reviewerTags: [
-            {
-                type: ObjectID,
-                ref: "tagModel"
-            }
-        ],
-        vendorTags: [
-            {
-                type: ObjectID,
-                ref: "tagModel"
-            }
-        ],
-        writerTags: [
-            {
-                type: ObjectID,
-                ref: "tagModel"
-            }
-        ],
-        finalTags: [
-            {
-                type: ObjectID,
-                ref: "tagModel"
-            }
-        ]
-    }, { collection: 'stageDB' });
-    return mongoose.model('stageModel', stageSchema);
+  let schema = mongoose.Schema;
+  let stageModel = new schema({
+    name: String,
+    createTick: Number,
+    modTick: Number,
+    endTick: Number,
+    startTick: Number,
+    order: Number,
+    value: Number,
+    sid: {
+      type: ObjectID,
+      ref: 'schemaModel'
+    },
+    reports: [
+      {
+        type: ObjectID,
+        ref: 'reportModel'
+      }
+    ],
+    desc: String,
+    matchPoint: Boolean,
+    closed: Number
+  }, { collection: 'stageDB' });
+  return mongoose.model('stageModel', stageModel);
 }
