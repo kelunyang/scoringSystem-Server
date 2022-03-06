@@ -770,8 +770,8 @@ export default function (io, models) {
                             from: '"' + setting.systemName + '" <' + robotSetting.mailAccount + '>',
                             to: user.email,
                             subject: setting.systemName + "：帳號開通通知信",
-                            text: "您好，您的帳號已經開通，你的帳號就是你收到信的Email，系統預設密碼密碼是：" + user.password + "\n請記得在登入後修改密碼並填入相關資訊，最重要的是，登入後，請務必要綁定您LINE，我們才能通知您喔！\n登入網址：" + setting.siteLocation, // plain text body
-                            html: "<p>您好，您的帳號已經開通，你的帳號就是你收到信的Email，系統預設密碼是：" + user.password + "</p><p>請記得在登入後修改密碼並填入相關資訊，最重要的是，登入後，請務必要綁定您LINE，我們才能通知您喔！</p><p>登入網址：<a href='" + setting.siteLocation + "' target='_blank' title='登入網址'>" + setting.siteLocation + "</a></p>", // html body
+                            text: "您好，您的帳號已經開通，你的帳號就是你收到信的Email，系統預設密碼密碼是：" + user.password + "\n請記得在登入後修改密碼並填入相關資訊\n登入網址：" + setting.siteLocation, // plain text body
+                            html: "<p>您好，您的帳號已經開通，你的帳號就是你收到信的Email，系統預設密碼是：" + user.password + "</p><p>請記得在登入後修改密碼並填入相關資訊</p><p>登入網址：<a href='" + setting.siteLocation + "' target='_blank' title='登入網址'>" + setting.siteLocation + "</a></p>", // html body
                           });
                           user.valid = true;
                         } catch(err) {
