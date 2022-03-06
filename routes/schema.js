@@ -128,7 +128,7 @@ export default function (io, models) {
     })
     .populate('stages')
     .populate('groups')
-    .populate('supervisor', '-password -lineToken -lineCode')
+    .populate('supervisors', '-password -lineToken -lineCode')
     .exec();
   }
 

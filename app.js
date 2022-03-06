@@ -24,6 +24,7 @@ let userAlived = true;
 let tempPassport = null;
 let sessionInUse = null;
 let aliverTimer = null;
+let DBexception = null;
 
 //model
 import settingMJS from './models/globalModel.js';
@@ -115,8 +116,7 @@ app.use(passport.initialize());
 mongoose.connect(mongoDB, { 
     useNewUrlParser: true,
     useUnifiedTopology: true,
-    auto_reconnect: true,
-    poolSize: 20
+    maxPoolSize: 20
 });
 
 server.listen(3000, function(){
