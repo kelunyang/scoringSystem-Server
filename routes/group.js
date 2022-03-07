@@ -95,11 +95,12 @@ export default function (io, models) {
     return groupedUsers;
   }
 
-  let getLoners = async (sid, keywords) => {
+  let getLoners = async (sid, keywords, tags) => {
     let availableUsers = [];
     if('passport' in io.p2p.request.session) {
       if('user' in io.p2p.request.session.passport) {
-        let grouped = (await getGrouped(sid, undefined))[0].allMemebers;
+        let groupQ = await getGrouped(sid, undefined);
+        let grouped = groupQ.length === 0 ? groupQ : groupQ[0].allMemebers;
         let currentUser = await models.userModel.findOne({
           _id: new ObjectId(io.p2p.request.session.passport.user)
         }).exec();
@@ -107,8 +108,21 @@ export default function (io, models) {
         let settingIncluded = _.intersectionWith(currentUser.tags, setting.settingTags, (uTag, sTag) => {
           return uTag.equals(sTag);
         });
+        let projectIncluded = _.intersectionWith(currentUser.tags, setting.projectTags, (uTag, pTag) => {
+          return uTag.equals(pTag);
+        });
         let queryCmd = [];
-        if(settingIncluded.length === 0) {
+        if(settingIncluded.length > 0 || projectIncluded.length > 0) {
+          if(tags !== undefined) {
+            queryCmd.push(
+              {
+                $match: {
+                  tags: { $in: tags }
+                }
+              }
+            );
+          }
+        } else {
           let ownGroup = await models.groupModel.findOne({
             sid: new Object(sid),
             $or:[ 
@@ -135,7 +149,7 @@ export default function (io, models) {
           queryCmd.push(
             {
               $match: {
-                desc: new RegExp(keywords, "g")
+                name: new RegExp(keywords, "g")
               }
             }
           );
@@ -222,8 +236,14 @@ export default function (io, models) {
           {members: { $in: [new ObjectId(io.p2p.request.session.passport.user)] }}
         ],
         sid: new ObjectId(data)
-      }).populate('members').exec();
-      io.p2p.emit('getCoworkers', group.members);
+      })
+      .populate('members')
+      .populate('leaders')
+      .exec();
+      let coworkers = group === null ? [] : _.unionWith(group.members, group.leaders, (member, leader) => {
+        return member._id.equals(leader._id);
+      });
+      io.p2p.emit('getCoworkers', coworkers);
       return;
     }
   });
@@ -284,12 +304,16 @@ export default function (io, models) {
             let members = _.map(data.members, (member) => {
               return new ObjectId(member);
             })
-            let groupeds = (await getGrouped(data.sid, group._id))[0].allMemebers;
+            members = _.differenceWith(members, group.leaders, (member, leader) => {
+              return member.equals(leader);
+            });
+            let groupedQ = await getGrouped(data.sid, group._id);
+            let groupeds = groupedQ.length === 0 ? groupedQ : groupedQ[0].allMemebers;
             let memberOverlaped = _.intersectionWith(members, groupeds, (member, grouped) => {
               return member.equals(grouped);
             });
             if(memberOverlaped.length === 0) {
-              let loners = await getLoners(data.sid, undefined);
+              let loners = await getLoners(data.sid, undefined, undefined);
               loners = _.differenceWith(loners, group.leaders, (loner, leader) => {
                 return leader.equals(loner._id);
               });
@@ -367,12 +391,13 @@ export default function (io, models) {
               leaders = _.differenceWith(leaders, group.members, (leader, member) => {
                 return leader.equals(member);
               });
-              let groupeds = (await getGrouped(data.sid, group._id))[0].allMemebers;
+              let groupedQ = await getGrouped(data.sid, group._id);
+              let groupeds = groupedQ.length === 0 ? groupedQ : groupedQ[0].allMemebers;
               let leaderOverlaped = _.intersectionWith(leaders, groupeds, (leader, grouped) => {
                 return leader.equals(grouped);
               });
               if(leaderOverlaped.length === 0) {
-                let loners = await getLoners(data.sid, undefined);
+                let loners = await getLoners(data.sid, undefined, undefined);
                 loners = _.differenceWith(loners, group.members, (loner, member) => {
                   return member.equals(loner._id);
                 });
@@ -420,7 +445,11 @@ export default function (io, models) {
     if(io.p2p.request.session.status.type === 3) {
       if('passport' in io.p2p.request.session) {
         if('user' in io.p2p.request.session.passport) {
-          let loners = await getLoners(data.sid);
+          let keywords = data.keywords === "" ? undefined : data.keywords;
+          let tags = data.tags.length === 0 ? undefined : _.map(data.tags, (tag) => {
+            return new ObjectId(tag);
+          });
+          let loners = await getLoners(data.sid, keywords, tags);
           io.p2p.emit('getLoner', loners);
         }
       }

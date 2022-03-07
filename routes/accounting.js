@@ -303,6 +303,9 @@ export default function (io, models) {
               queryData = [currentUserID];
             } else {
               queryData = _.intersectionWith(data.uids, groupMembers, (uid, member) => {
+                if(typeof(uid) !== 'string') {
+                  uid = uid._id;
+                }
                 return (new ObjectId(uid)).equals(member);
               })
             }

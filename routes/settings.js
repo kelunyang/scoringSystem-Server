@@ -32,7 +32,8 @@ export default function (io, models) {
         withAudio: robotSettings.converisionAudio,
         validRange: robotSettings.converisionDurationLimit
       },
-      systemName: globalSetting.systemName
+      systemName: globalSetting.systemName,
+      restrictTags: globalSetting.restrictTags
     });
     return;
   });

@@ -458,27 +458,32 @@ export default function (io, models) {
 
   io.p2p.on('setCurrentUser', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
-      let user = await models.userModel.findOne({
-        _id: new ObjectId(io.p2p.request.session.passport.user)
-      }).exec();
-      let restricted = _.intersectionWith(setting.restrictTags, user.tags, (sTag, dTag) => {
-        return sTag.equals(dTag);
-      });
-      if(restricted.length === 0) { 
-        user.name = data.name;
-        user.unit = data.unit;
+      if('passport' in io.p2p.request.session) {
+        if('user' in io.p2p.request.session.passport) {
+          let setting = await models.settingModel.findOne({}).exec();
+          let user = await models.userModel.findOne({
+            _id: new ObjectId(io.p2p.request.session.passport.user)
+          }).exec();
+          let restricted = _.intersectionWith(setting.restrictTags, user.tags, (sTag, dTag) => {
+            return sTag.equals(dTag);
+          });
+          if(restricted.length === 0) { 
+            user.name = data.name;
+            user.unit = data.unit;
+          }
+          user.types = data.types;
+          user.firstRun = false;
+          user.modDate = dayjs().unix();
+          if(data.password !== '') {
+            user.password = bcrypt.hashSync(data.password, bcrypt.genSaltSync(10));
+          }
+          await user.save();
+          io.p2p.emit('setCurrentUser', {
+            modify: dayjs().unix()
+          });
+          io.p2p.emit('getCurrentUser', user);
+        }
       }
-      user.types = data.types;
-      user.firstRun = false;
-      user.modDate = dayjs().unix();
-      if(data.password !== '') {
-        user.password = bcrypt.hashSync(data.password, bcrypt.genSaltSync(10));
-      }
-      await user.save();
-      io.p2p.emit('setCurrentUser', {
-        modify: dayjs().unix()
-      });
-      io.p2p.emit('getCurrentUser', user);
     }
     return;
   });

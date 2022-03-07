@@ -19,14 +19,14 @@ export default function (io, models) {
         tags = await models.tagModel.find({}).exec();
         if(settingIncluded.length === 0) {
           tags = _.differenceWith(tags, setting.settingTags, (tag, sTag) => {
-            return tag.equals(sTag);
+            return tag._id.equals(sTag);
           });
           let projectIncluded = _.intersectionWith(user.tags, setting.projectTags, (uTag, pTag) => {
             return uTag.equals(pTag);
           });
           if(projectIncluded.length === 0) {
             tags = _.differenceWith(tags, setting.projectTags, (tag, pTag) => {
-              return tag.equals(pTag);
+              return tag._id.equals(pTag);
             });
           }
           let userIncluded = _.intersectionWith(user.tags, setting.userTags, (uTag, sTag) => {
@@ -34,7 +34,7 @@ export default function (io, models) {
           });
           if(userIncluded.length === 0) {
             tags = _.differenceWith(tags, setting.userTags, (tag, uTag) => {
-              return tag.equals(uTag);
+              return tag._id.equals(uTag);
             });
           }
         }

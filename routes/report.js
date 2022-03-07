@@ -1076,12 +1076,14 @@ export default function (io, models) {
             ]
           }).exec();
           let totalGroups = schema.groups.length;
-          if(schema.tagGroupped) {
-            let sameGroup = await models.groupModel.find({
-              tag: group.tag,
-              sid: schema._id
-            }).exec();
-            totalGroups = sameGroup.length;
+          if(group !== null) {
+            if(schema.tagGroupped) {
+              let sameGroup = await models.groupModel.find({
+                tag: group.tag,
+                sid: schema._id
+              }).exec();
+              totalGroups = sameGroup.length;
+            }
           }
           let gapCount = Math.ceil(totalGroups * schema.gapRate);
           io.p2p.emit('getAuditionGap', gapCount);
@@ -1120,7 +1122,11 @@ export default function (io, models) {
           let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
             return sTag.equals(uTag);
           })
-          if(leaderCheck.length > 0 || supervisorCheck.length > 0 || globalCheck > 0) {
+          let lockedReport = false;
+          if(leaderCheck.length > 0) {
+            lockedReport = !report.locked;
+          }
+          if(lockedReport || supervisorCheck.length > 0 || globalCheck > 0) {
             if(report.gained === 0) {
               if(report.visibility) {
                 let stage = await models.stageModel.findOne({
