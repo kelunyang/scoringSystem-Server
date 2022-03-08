@@ -36,7 +36,8 @@ export default function (mongoose) {
       type: ObjectID,
       ref: 'userModel'
     },
-    short: Boolean
+    short: Boolean,
+    totalBalance: Number
   }, { collection: 'auditDB' });
   return mongoose.model('auditModel', auditModel);
 }

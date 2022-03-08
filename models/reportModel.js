@@ -44,7 +44,8 @@ export default function (mongoose) {
       ref: 'tagModel'
     },
     locked: Boolean,
-    lockedTick: Number
+    lockedTick: Number,
+    totalBalance: Number
   }, { collection: 'reportDB' });
   return mongoose.model('reportModel', reportModel);
 }

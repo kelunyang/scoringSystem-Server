@@ -182,8 +182,9 @@ export default function (io, models) {
       if(audit.short) {
         auditScore = auditScore * schema.shortBonus;
       }
-      let totalBalance = await getBalance(audit.coworkers, schema._id);
-      let maxBet = Math.floor(totalBalance[0].balance) > report.value ? report.value : Math.floor(totalBalance[0].balance);
+      let totalBalance = audit.totalBalance;
+      let maxBet = totalBalance > report.value ? report.value : totalBalance;
+      maxBet = maxBet <= 0 ? 1 : maxBet;
       let timeValue = Math.abs(stage.endTick - report.tick);
       timeValue = Math.ceil((audit.value / maxBet) * timeValue);
       let valueAudit = (auditScore + Math.ceil(timeValue * (rankRate / audits.length)));
@@ -269,8 +270,9 @@ export default function (io, models) {
       let members = _.unionWith(group.members, group.leaders, (a, b) => {
         return a.equals(b);
       });
-      let totalBalance = await getBalance(report.coworkers, schema._id);
-      let maxBet = Math.floor(totalBalance[0].balance * schema.betRate);
+      let totalBalance = report.totalBalance;
+      let maxBet = Math.floor(totalBalance * schema.betRate);
+      maxBet = maxBet <= 0 ? 1 : maxBet;
       let timeValue = stage.endTick - report.tick;
       timeValue = Math.ceil((report.value / maxBet) * timeValue);
       timeValue = timeValue > 0 ? timeValue : 0;
@@ -700,7 +702,8 @@ export default function (io, models) {
                   visibility: true,
                   tag: group.tag,
                   locked: false,
-                  lockedTick: 0
+                  lockedTick: 0,
+                  totalBalance: Math.floor(totalBalance[0].balance)
                 });
                 stage.reports.push(report._id);
                 await stage.save();
@@ -801,7 +804,8 @@ export default function (io, models) {
                     feedbackTick: 0,
                     gained: 0,
                     gid: group._id,
-                    short: data.short
+                    short: data.short,
+                    totalBalance: Math.floor(totalBalance[0].balance)
                   });
                   report.audits.push(audit._id);
                   await report.save();
@@ -1001,6 +1005,13 @@ export default function (io, models) {
               audit.feedbackTick = now;
               await report.save();
               await audit.save();
+              await models.accountingModel.create({
+                tick: now,
+                sid: report.sid,
+                uid: uid,
+                desc: "確認評分結果",
+                value: (data.value * -1)
+              });
               let feedbacked = await models.auditModel.find({
                 rid: audit.rid,
                 feedbackTick: { $gt: 0 }
@@ -1030,13 +1041,6 @@ export default function (io, models) {
                   }
                 }
               }
-              await models.accountingModel.create({
-                tick: now,
-                sid: report.sid,
-                uid: uid,
-                desc: "確認評分結果",
-                value: (data.value * -1)
-              });
               await models.eventlogModel.create({
                 tick: now,
                 type: '報告系統',
