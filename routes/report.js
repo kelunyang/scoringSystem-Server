@@ -172,13 +172,23 @@ export default function (io, models) {
     let rankRate = audits.length;
     for(let i=0; i< audits.length; i++) {
       let audit = audits[i];
+      let shortTip = audit.short ? "[負評]" : "";
       let group = await models.groupModel.findOne({
         _id: audit.gid
       }).exec();
       let members = _.unionWith(group.members, group.leaders, (a, b) => {
         return a.equals(b);
       });
-      let auditScore = audit.short ? Math.abs(Math.ceil(Math.abs(audit.value - (audit.value - audit.feedback)) / 2) + (audit.value * -1)) : Math.ceil(Math.abs((audit.value - audit.feedback) / 2)) + audit.feedback;
+      let auditScore = 0;
+      if(audit.feedbackTick > 0) {
+        if(audit.short) {
+          auditScore = Math.abs(Math.ceil(Math.abs(audit.value - (audit.value - audit.feedback)) / 2) + (audit.value * -1));
+        } else {
+          auditScore = Math.ceil(Math.abs((audit.value - audit.feedback) / 2)) + audit.feedback;
+        }
+      } else {
+        auditScore = audit.value
+      }
       auditScore = auditScore * stage.value;
       if(audit.short) {
         auditScore = auditScore * schema.shortBonus;
@@ -197,7 +207,7 @@ export default function (io, models) {
             sid: schema._id,
             uid: user,
             invalid: 0,
-            desc: "評分前(" + (i+1) + "/" + audits.length + ")名得點（負責人）",
+            desc: "評分前(" + (i+1) + "/" + audits.length + ")名得點（負責人）" + shortTip,
             value: valueAudit * schema.workerRate
           });
           await models.eventlogModel.create({
@@ -336,24 +346,26 @@ export default function (io, models) {
       }).exec();
       let feedbackers = [];
       for(let i=0; i<audits.length; i++) {
-        let user = audits[i].feedbackUser;
-        feedbackers.push(user);
-        let feedbackRate = Math.ceil(audits[i].feedback / (report.value / report.coworkers.length));
-        await models.accountingModel.create({
-          tick: now,
-          sid: schema._id,
-          uid: user,
-          invalid: 0,
-          desc: "報告得點（確認評分者）" + rankWord,
-          value: valueWorker * feedbackRate
-        });
-        await models.eventlogModel.create({
-          tick: now,
-          type: '報告系統',
-          desc: '發點數',
-          sid: schema._id,
-          user: user
-        });
+        if(audits[i].feedbackTick > 0) {
+          let user = audits[i].feedbackUser;
+          feedbackers.push(user);
+          let feedbackRate = Math.ceil(audits[i].feedback / (report.value / report.coworkers.length));
+          await models.accountingModel.create({
+            tick: now,
+            sid: schema._id,
+            uid: user,
+            invalid: 0,
+            desc: "報告得點（確認評分者）" + rankWord,
+            value: valueWorker * feedbackRate
+          });
+          await models.eventlogModel.create({
+            tick: now,
+            type: '報告系統',
+            desc: '發點數',
+            sid: schema._id,
+            user: user
+          });
+        }
       }
       let coworkers = _.unionWith(report.coworkers, feedbackers, (coworker, feedbacker) => {
         return coworker.equals(feedbacker);
