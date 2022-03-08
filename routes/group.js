@@ -327,6 +327,7 @@ export default function (io, models) {
                   desc: '活動初始點數',
                   sid: sid,
                   uid: newbie,
+                  invalid: 0,
                   value: schema.initCapital
                 });
               }
@@ -411,6 +412,7 @@ export default function (io, models) {
                     desc: '活動初始點數',
                     sid: sid,
                     uid: newbie,
+                    invalid: 0,
                     value: schema.initCapital
                   });
                 }

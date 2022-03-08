@@ -69,6 +69,11 @@ export default function (io, models) {
   }
   let getAccounting = async (uid, sid, startTick, endTick, keyword, logNum) => {
     let queryCmd = [];
+    queryCmd.push({
+      $match: {
+        invalid: 0
+      }
+    });
     if(startTick !== undefined) {
       queryCmd.push({
         $match: {
@@ -157,6 +162,11 @@ export default function (io, models) {
       }
     });
     let queryCmd = [];
+    queryCmd.push({
+      $match: {
+        invalid: 0
+      }
+    });
     if(uid !== undefined) {
       queryCmd.push({
         $match: {
@@ -320,6 +330,54 @@ export default function (io, models) {
         }
       }
     }
+    return;
+  });
+
+  io.p2p.on('rejectAccounting', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if('passport' in io.p2p.request.session) {
+        if('user' in io.p2p.request.session.passport) {
+          let now = dayjs().unix();
+          let globalSetting = await models.settingModel.findOne({}).exec();
+          let uid = new ObjectId(io.p2p.request.session.passport.user);
+          let user = await models.userModel.findOne({
+            _id: uid
+          }).exec();
+          let accounting = await models.accountingModel.findOne({
+            _id: new ObjectId(data._id)
+          }).exec();
+          let schema = await models.schemaModel.findOne({
+            _id: accounting.sid
+          }).exec();
+          let supervisorCheck = _.filter(schema.supervisors, (supervisor) => {
+            return supervisor.equals(user._id);
+          });
+          let authorizedTags = _.flatten(globalSetting.settingTags, globalSetting.projectTags)
+          let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
+            return sTag.equals(uTag);
+          })
+          if(supervisorCheck.length > 0 || globalCheck > 0) {
+            accounting.invalid = accounting.invalid === 0 ? now : 0;
+            await accounting.save();
+            await models.eventlogModel.create({
+              tick: now,
+              type: '記帳系統',
+              desc: '撤銷記帳紀錄',
+              sid: schema._id,
+              user: user
+            });
+            io.p2p.emit('rejectAccounting', true);
+            return;
+          }
+        }
+      }
+    }
+    io.p2p.emit('accessViolation', {
+      where: '記帳系統',
+      tick: dayjs().unix(),
+      action: '退回記帳紀錄',
+      loginRequire: false
+    });
     return;
   });
 

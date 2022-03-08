@@ -13,7 +13,8 @@ export default function (mongoose) {
       ref: 'userModel'
     },
     value: Number,
-    desc: String
+    desc: String,
+    invalid: Number
   }, { collection: 'accountingDB' });
   return mongoose.model('accountingModel', accountingModel);
 }

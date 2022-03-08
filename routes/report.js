@@ -33,7 +33,8 @@ export default function (io, models) {
     queryCmd.push({
       $match: {
         uid: { $in: uids },
-        sid: new ObjectId(sid)
+        sid: new ObjectId(sid),
+        invalid: 0
       }
     },{
       $group: {
@@ -195,6 +196,7 @@ export default function (io, models) {
             tick: now,
             sid: schema._id,
             uid: user,
+            invalid: 0,
             desc: "評分前(" + (i+1) + "/" + audits.length + ")名得點（負責人）",
             value: valueAudit * schema.workerRate
           });
@@ -218,6 +220,7 @@ export default function (io, models) {
             tick: now,
             sid: schema._id,
             uid: member,
+            invalid: 0,
             desc: "評分前(" + (i+1) + "/" + audits.length + ")名得點（組員）",
             value: valueAudit * schema.memberRate
           });
@@ -241,6 +244,7 @@ export default function (io, models) {
             tick: now,
             sid: schema._id,
             uid: member,
+            invalid: 0,
             desc: "評分前(" + (i+1) + "/" + audits.length + ")名得點（組長）",
             value: valueAudit * schema.leaderRate
           });
@@ -314,6 +318,7 @@ export default function (io, models) {
           tick: now,
           sid: schema._id,
           uid: user,
+          invalid: 0,
           desc: "報告得點（負責人）" + rankWord,
           value: valueWorker
         });
@@ -338,6 +343,7 @@ export default function (io, models) {
           tick: now,
           sid: schema._id,
           uid: user,
+          invalid: 0,
           desc: "報告得點（確認評分者）" + rankWord,
           value: valueWorker * feedbackRate
         });
@@ -364,6 +370,7 @@ export default function (io, models) {
           tick: now,
           sid: schema._id,
           uid: member,
+          invalid: 0,
           desc: "報告得點（組員）" + rankWord,
           value: valueMember
         });
@@ -387,6 +394,7 @@ export default function (io, models) {
           tick: now,
           sid: schema._id,
           uid: leader,
+          invalid: 0,
           desc: "報告得點（組長）" + rankWord,
           value: valueLeader
         });
@@ -714,6 +722,7 @@ export default function (io, models) {
                     tick: now,
                     sid: stage.sid,
                     uid: coworker,
+                    invalid: 0,
                     desc: "投入報告信心點數",
                     value: valueReport
                   });
@@ -816,6 +825,7 @@ export default function (io, models) {
                       tick: now,
                       sid: report.sid,
                       uid: coworker,
+                      invalid: 0,
                       desc: "投入評分信心點數",
                       value: valueReport
                     });
@@ -1009,6 +1019,7 @@ export default function (io, models) {
                 tick: now,
                 sid: report.sid,
                 uid: uid,
+                invalid: 0,
                 desc: "確認評分結果",
                 value: (data.value * -1)
               });
@@ -1148,6 +1159,7 @@ export default function (io, models) {
                       tick: now,
                       sid: report.sid,
                       uid: coworker,
+                      invalid: 0,
                       desc: "撤回報告歸還評分信心點數",
                       value: returnValue
                     });

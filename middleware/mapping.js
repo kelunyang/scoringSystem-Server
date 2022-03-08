@@ -755,5 +755,11 @@ export default async function (models) {
       authRange: [],
       loginRequire: true
     },
+    rejectAccounting: {
+      action: '撤銷記帳紀錄',
+      where: '記帳模組',
+      authRange: [],
+      loginRequire: true
+    },
   }
 }
