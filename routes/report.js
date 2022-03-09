@@ -274,12 +274,13 @@ export default function (io, models) {
     }
   }
 
-  let depositReport = async(stage, schema, report, group, score) => {
+  let depositReport = async(stage, schema, report, group, score, ignoreTime) => {
     let now = dayjs().unix();
     let valueWorker = 0;
     let valueMember = 0;
     let valueLeader = 0;
     let calc = false;
+    let ignoreTip = ignoreTime ? "[不發時間點數]" : "";
     if(report.gained === 0) {
       let members = _.unionWith(group.members, group.leaders, (a, b) => {
         return a.equals(b);
@@ -288,7 +289,8 @@ export default function (io, models) {
       let maxBet = Math.floor(totalBalance * schema.betRate);
       maxBet = maxBet <= 0 ? 1 : maxBet;
       let timeValue = stage.endTick - report.tick;
-      timeValue = Math.ceil((report.value / maxBet) * timeValue);
+      timeValue = ignoreTime ? 0 : timeValue;
+      timeValue = Math.ceil((report.grantedValue / maxBet) * timeValue);
       timeValue = timeValue > 0 ? timeValue : 0;
       let expired = timeValue > 0 ? 1 : 0;
       timeValue = score === 0 ? 0 : timeValue;
@@ -329,7 +331,7 @@ export default function (io, models) {
           sid: schema._id,
           uid: user,
           invalid: 0,
-          desc: "報告得點（負責人）" + rankWord,
+          desc: "報告得點（負責人）" + rankWord + ignoreTip,
           value: valueWorker
         });
         await models.eventlogModel.create({
@@ -349,13 +351,13 @@ export default function (io, models) {
         if(audits[i].feedbackTick > 0) {
           let user = audits[i].feedbackUser;
           feedbackers.push(user);
-          let feedbackRate = Math.ceil(audits[i].feedback / (report.value / report.coworkers.length));
+          let feedbackRate = Math.ceil(audits[i].feedback / (report.grantedValue / report.coworkers.length));
           await models.accountingModel.create({
             tick: now,
             sid: schema._id,
             uid: user,
             invalid: 0,
-            desc: "報告得點（確認評分者）" + rankWord,
+            desc: "報告得點（確認評分者）" + rankWord + ignoreTip,
             value: valueWorker * feedbackRate
           });
           await models.eventlogModel.create({
@@ -383,7 +385,7 @@ export default function (io, models) {
           sid: schema._id,
           uid: member,
           invalid: 0,
-          desc: "報告得點（組員）" + rankWord,
+          desc: "報告得點（組員）" + rankWord + ignoreTip,
           value: valueMember
         });
         await models.eventlogModel.create({
@@ -407,7 +409,7 @@ export default function (io, models) {
           sid: schema._id,
           uid: leader,
           invalid: 0,
-          desc: "報告得點（組長）" + rankWord,
+          desc: "報告得點（組長）" + rankWord + ignoreTip,
           value: valueLeader
         });
         await models.eventlogModel.create({
@@ -479,7 +481,7 @@ export default function (io, models) {
     }
   }
 
-  let evaluatedReport = async(rid) => {
+  let evaluatedReport = async(rid, ignoreTime) => {
     let report = await models.reportModel.findOne({
       _id: new ObjectId(rid)
     }).exec();
@@ -501,10 +503,10 @@ export default function (io, models) {
       })
       if(falseCheck.length === 0) {   //正分
         let score = report.grantedValue * stage.value;
-        await depositReport(stage, schema, report, group, score);
+        await depositReport(stage, schema, report, group, score, ignoreTime);
       } else {  //負分
         let score = 0;
-        await depositReport(stage, schema, report, group, score);
+        await depositReport(stage, schema, report, group, score, ignoreTime);
       }
     }
   }
@@ -877,7 +879,7 @@ export default function (io, models) {
             _id: uid
           }).exec();
           let report = await models.reportModel.findOne({
-            _id: new ObjectId(data._id)
+            _id: new ObjectId(data.report._id)
           }).exec();
           let schema = await models.schemaModel.findOne({
             _id: report.sid
@@ -889,8 +891,8 @@ export default function (io, models) {
             return sTag.equals(uTag);
           })
           if(supervisorCheck.length > 0 || globalCheck > 0) {
-            await evaluatedAudit(data._id, io.p2p.request.session.passport.user);
-            await evaluatedReport(data._id);
+            await evaluatedAudit(data.report._id, io.p2p.request.session.passport.user);
+            await evaluatedReport(data.report._id, data.ignoreTime);
             io.p2p.emit('calcReport', true);
             return;
           }
@@ -917,7 +919,7 @@ export default function (io, models) {
             _id: uid
           }).exec();
           let report = await models.reportModel.findOne({
-            _id: new ObjectId(data._id)
+            _id: new ObjectId(data.report._id)
           }).exec();
           let schema = await models.schemaModel.findOne({
             _id: report.sid
@@ -929,12 +931,12 @@ export default function (io, models) {
             return sTag.equals(uTag);
           })
           if(supervisorCheck.length > 0 || globalCheck > 0) {
-            report.grantedValue = data.grantedValue;
+            report.grantedValue = data.report.grantedValue;
             report.grantedUser = uid;
             report.grantedDate = now;
             await report.save();
-            await evaluatedAudit(data._id, io.p2p.request.session.passport.user);
-            await evaluatedReport(data._id);
+            await evaluatedAudit(data.report._id, io.p2p.request.session.passport.user);
+            await evaluatedReport(data.report._id, data.ignoreTime);
             io.p2p.emit('setGrant', true);
             return;
           }
@@ -1058,7 +1060,7 @@ export default function (io, models) {
                       });
                       if(falseCheck.length === 0) {
                         await evaluatedAudit(report._id, undefined);
-                        await evaluatedReport(report._id);
+                        await evaluatedReport(report._id, undefined);
                       }
                     }
                   }

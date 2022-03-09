@@ -761,5 +761,11 @@ export default async function (models) {
       authRange: [],
       loginRequire: true
     },
+    getOwnGroup: {
+      action: '取得自己的編組',
+      where: '群組模組',
+      authRange: [],
+      loginRequire: true
+    },
   }
 }

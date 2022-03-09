@@ -717,5 +717,25 @@ export default function (io, models) {
     return;
   });
 
+  io.p2p.on('getOwnGroup', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if('passport' in io.p2p.request.session) {
+        if('user' in io.p2p.request.session.passport) {
+          let uid = new ObjectId(io.p2p.request.session.passport.user);
+          let group = await models.groupModel.findOne({
+            sid: new ObjectId(data),
+            $or:[ 
+              {leaders: { $in: [uid] }},
+              {members: { $in: [uid] }}
+            ]
+          }).exec();
+          io.p2p.emit('getOwnGroup', group);
+          return;
+        }
+      }
+    }
+    return;
+  });
+
   return router;
 }
