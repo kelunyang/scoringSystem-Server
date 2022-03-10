@@ -12,7 +12,7 @@ import fs from 'fs-extra';
 /* GET users listing. */
 export default function (app, passport, models) {
   router.post('/login', auth(models), (req, res, next) => {
-    req.app.locals.username = req.body.user;
+    req.app.locals.username = req.body.user.trim();
     req.app.locals.password = req.body.pass;
     if(res.locals.status.type === 0) {
       passport.authenticate('local', {

@@ -343,6 +343,7 @@ export default function (io, models) {
           user.unit = data.unit;
         }
       }
+      user.seed = data.seed;
       user.types = data.types;
       user.firstRun = false;
       await user.save();
@@ -373,6 +374,7 @@ export default function (io, models) {
             createDate: 0,
             modDate: 0,
             lineDate: 0,
+            seed: "",
             restricted: true
           });
         } else {
@@ -390,6 +392,7 @@ export default function (io, models) {
             createDate: user.createDate,
             modDate: user.modDate,
             lineDate: user.lineDate,
+            seed: user.seed,
             restricted: restricted.length > 0
           });
         }
@@ -405,6 +408,7 @@ export default function (io, models) {
       createDate: 0,
       modDate: 0,
       lineDate: 0,
+      seed: "",
       restricted: true
     });
     return;
@@ -471,6 +475,7 @@ export default function (io, models) {
             user.name = data.name;
             user.unit = data.unit;
           }
+          user.seed = data.seed;
           user.types = data.types;
           user.firstRun = false;
           user.modDate = dayjs().unix();

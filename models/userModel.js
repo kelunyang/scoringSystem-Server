@@ -17,7 +17,8 @@ export default function (mongoose) {
         lineDate: Number,
         lineToken: String,
         password: String,
-        firstRun: Boolean
+        firstRun: Boolean,
+        seed: String
     }, { collection: 'userDB' });
     return mongoose.model('userModel', userSchema);
 }

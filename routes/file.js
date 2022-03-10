@@ -720,6 +720,7 @@ export default function (io, models) {
                       password: password,
                       unit: item['服務單位'],
                       tags: [],
+                      seed: "",
                       email: item['email'],
                       emailExist: false,
                       emailInvalid: !validator.isEmail(item['email'])
