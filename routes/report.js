@@ -344,7 +344,8 @@ export default function (io, models) {
       }
       let audits = await models.auditModel.find({
         rid: report._id,
-        gained: { $gt: 0 }
+        gained: { $gt: 0 },
+        feedbackUser: { $nin: report.coworkers }
       }).exec();
       let feedbackers = [];
       for(let i=0; i<audits.length; i++) {
@@ -475,7 +476,7 @@ export default function (io, models) {
         });
         report.grantedUser = signUser;
         report.grantedDate = now;
-        report.grantedValue = auditValues;
+        report.grantedValue = Math.ceil(auditValues);
         await report.save();
       }
     }
@@ -608,14 +609,17 @@ export default function (io, models) {
           });
           let auditValues = report.audits.length > 0 ? _.meanBy(report.audits, (audit) => {
             let score = 0;
-            if(audit.feedbackTick > 0) {
-              if(audit.short) {
-                score = Math.ceil(Math.abs(audit.value - (audit.value - audit.feedback)) / 2) + (audit.value * -1);
+            let countControl = falseAudit.length > 0 ? audit.confirm > 0 : true;
+            if(countControl) {
+              if(audit.feedbackTick > 0) {
+                if(audit.short) {
+                  score = Math.ceil(Math.abs(audit.value - (audit.value - audit.feedback)) / 2) + (audit.value * -1);
+                } else {
+                  score = Math.ceil(Math.abs((audit.value - audit.feedback) / 2)) + audit.feedback;
+                }
               } else {
-                score = Math.ceil(Math.abs((audit.value - audit.feedback) / 2)) + audit.feedback;
+                score = audit.value
               }
-            } else {
-              score = audit.value
             }
             return score;
           }) : 0;
@@ -623,7 +627,7 @@ export default function (io, models) {
             report: report,
             isAuthor: group !== null,
             falseAudit: falseAudit.length > 0,
-            auditValues: auditValues
+            auditValues: Math.ceil(auditValues)
           });
         }
       }

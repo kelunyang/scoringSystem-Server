@@ -299,7 +299,6 @@ export default function (io, models) {
               leaderAuthorized = true;
             }
           }
-
           if(leaderAuthorized || supervisorCheck.length > 0 || globalCheck.length > 0) {
             let members = _.map(data.members, (member) => {
               return new ObjectId(member);
@@ -384,51 +383,55 @@ export default function (io, models) {
           let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
             return sTag.equals(uTag);
           });
-          if(!group.locked) {
-            if(leaderCheck.length > 0 || supervisorCheck.length > 0 || globalCheck > 0) {
-              let leaders = _.map(data.leaders, (leader) => {
-                return new ObjectId(leader);
-              })
-              leaders = _.differenceWith(leaders, group.members, (leader, member) => {
-                return leader.equals(member);
+          let leaderAuthorized = false;
+          if(leaderCheck.length > 0) {
+            if(!group.locked) {
+              leaderAuthorized = true;
+            }
+          }
+          if(leaderAuthorized || supervisorCheck.length > 0 || globalCheck.length > 0) {
+            let leaders = _.map(data.leaders, (leader) => {
+              return new ObjectId(leader);
+            })
+            leaders = _.differenceWith(leaders, group.members, (leader, member) => {
+              return leader.equals(member);
+            });
+            let groupedQ = await getGrouped(data.sid, group._id);
+            let groupeds = groupedQ.length === 0 ? groupedQ : groupedQ[0].allMemebers;
+            let leaderOverlaped = _.intersectionWith(leaders, groupeds, (leader, grouped) => {
+              return leader.equals(grouped);
+            });
+            if(leaderOverlaped.length === 0) {
+              let loners = await getLoners(data.sid, undefined, undefined);
+              loners = _.differenceWith(loners, group.members, (loner, member) => {
+                return member.equals(loner._id);
               });
-              let groupedQ = await getGrouped(data.sid, group._id);
-              let groupeds = groupedQ.length === 0 ? groupedQ : groupedQ[0].allMemebers;
-              let leaderOverlaped = _.intersectionWith(leaders, groupeds, (leader, grouped) => {
-                return leader.equals(grouped);
+              let newbies = _.intersectionWith(leaders, loners, (member, loner) => {
+                return member.equals(loner._id);
               });
-              if(leaderOverlaped.length === 0) {
-                let loners = await getLoners(data.sid, undefined, undefined);
-                loners = _.differenceWith(loners, group.members, (loner, member) => {
-                  return member.equals(loner._id);
-                });
-                let newbies = _.intersectionWith(leaders, loners, (member, loner) => {
-                  return member.equals(loner._id);
-                });
-                for(let i=0; i<newbies.length; i++) {
-                  let newbie = newbies[i];
-                  let deposit = await models.accountingModel.create({
-                    tick: now,
-                    desc: '活動初始點數',
-                    sid: sid,
-                    uid: newbie,
-                    invalid: 0,
-                    value: schema.initCapital
-                  });
-                }
-                group.leaders = leaders;
-                group.modTick = now;
-                await group.save();
-                let event = await models.eventlogModel.create({
+              for(let i=0; i<newbies.length; i++) {
+                let newbie = newbies[i];
+                let deposit = await models.accountingModel.create({
                   tick: now,
-                  type: '群組管理',
-                  desc: '設定組長',
+                  desc: '活動初始點數',
                   sid: sid,
-                  user: currentUserID
+                  uid: newbie,
+                  invalid: 0,
+                  value: schema.initCapital
                 });
-                io.p2p.emit('setLeader', true);
-                return;
               }
+              group.leaders = leaders;
+              group.modTick = now;
+              await group.save();
+              let event = await models.eventlogModel.create({
+                tick: now,
+                type: '群組管理',
+                desc: '設定組長',
+                sid: sid,
+                user: currentUserID
+              });
+              io.p2p.emit('setLeader', true);
+              return;
             }
           }
         }
