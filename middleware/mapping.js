@@ -446,7 +446,13 @@ export default async function (models) {
     importUserlist: {
       action: '匯入使用者清單',
       where: '使用者模組',
-      authRange: [],
+      authRange: _.flatten([setting.settingTags, setting.userTags]),
+      loginRequire: true
+    },
+    importbulkmsgFile: {
+      action: '匯入大量訊息發送清單',
+      where: '訊息模組',
+      authRange: _.flatten([setting.settingTags, setting.userTags]),
       loginRequire: true
     },
     getPersonalBalance: {
@@ -763,6 +769,18 @@ export default async function (models) {
     },
     getOwnGroup: {
       action: '取得自己的編組',
+      where: '群組模組',
+      authRange: [],
+      loginRequire: true
+    },
+    getGroupTags: {
+      action: '取得群組清單的標籤',
+      where: '群組模組',
+      authRange: [],
+      loginRequire: true
+    },
+    getTagGroups: {
+      action: '依照標籤取得群組清單',
       where: '群組模組',
       authRange: [],
       loginRequire: true

@@ -94,7 +94,7 @@ export default function (app, passport, models) {
         withCredentials: true
       });
       let sendmsg = await axios.post('https://notify-api.line.me/api/notify', qs.stringify({
-        message: '您好，歡迎使用臺北市學科影片審查系統的LINE notify通知服務！'
+        message: '您好，歡迎使用' + settingModel.systemName + '的LINE notify通知服務！'
       }), {
         headers: {
           Authorization: 'Bearer ' + result.data.access_token
@@ -116,7 +116,8 @@ export default function (app, passport, models) {
         log: [{
           uid: user._id,
           tick: tick,
-          status : 1
+          status : 1,
+          type: 0
         }]
       });
       res.send("[" + dayjs.unix(user.lineDate).format("YYYY-MM-DD HH:mm:ss") + "] LINE Notify綁定完成，您的帳號是：" + user.name + "，請關閉本視窗");

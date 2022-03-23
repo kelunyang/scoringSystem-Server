@@ -12,7 +12,8 @@ export default function (mongoose) {
             },
             tick: Number,
             status: Number
-        }]
+        }],
+        type: Number
     }, { collection: 'lineDB' });
     return mongoose.model('lineDBModel', lineDBSchema);
 }

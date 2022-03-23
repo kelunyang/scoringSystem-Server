@@ -8,6 +8,9 @@ import _ from 'lodash';
 import stripBOM from 'strip-bom';
 import mime from 'mime-types';
 import { ObjectId } from 'bson';
+import { marked } from 'marked';
+import axios from 'axios';
+import qs from 'qs';
 import stream from 'stream';
 import validator from 'validator';
 import bcrypt from 'bcryptjs';
@@ -799,6 +802,138 @@ export default function (io, models) {
         };
       } else { 
         io.p2p.emit('requestuserlistSlice', { 
+            currentSlice: files[data.uuid].slice,
+            uuid: data.uuid
+        }); 
+      } 
+    }
+    return;
+  });
+
+  io.p2p.on('importbulkmsgFile', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if (!files[data.uuid]) { 
+        files[data.uuid] = Object.assign({}, struct, data); 
+        files[data.uuid].data = [];
+      }
+      data.data = Buffer.from(new Uint8Array(data.data)); 
+      files[data.uuid].data.push(data.data); 
+      files[data.uuid].slice++;
+      if (files[data.uuid].slice * 100000 >= files[data.uuid].size) {
+        let fileBuffer = Buffer.concat(files[data.uuid].data);
+        try {
+          io.p2p.emit('bulkmsgsampleUploadDone');
+          let setting = await models.settingModel.findOne({}).exec();
+          let robotSetting = await models.robotModel.findOne({}).exec();
+          let now = dayjs().unix();
+          let readStream = new stream.PassThrough();
+          readStream.end(fileBuffer).pipe(concat((content) => {
+            Papa.parse(stripBOM(content.toString()), {
+              header: true,
+              skipEmptyLines: true,
+              complete: async (result) => {
+                try {
+                  let logDB = [];
+                  let successArray = [];
+                  for(let i=0; i< result.data.length; i++) {
+                    let countWord = "(" + (i+1) + "/" + result.data.length + ")";
+                    let item = result.data[i];
+                    let log = {
+                      email: item['Email'],
+                      msg: "找不到Email"
+                    }
+                    let successlog = {
+                      uid: "",
+                      tick: dayjs().unix(),
+                      status: 0
+                    };
+                    let user = await models.userModel.findOne({
+                      email: item['Email']
+                    }).exec();
+                    if(user !== null) {
+                      successlog.uid = user._id;
+                      io.p2p.emit('bulkmsgsampleReport', user.name + countWord + "發送中");
+                      let useLINE = item['發送方式'] === "L" ? true : false;
+                      if(!('lineToken' in user) || user.lineToken !== undefined) {
+                        useLINE = useLINE ? useLINE : false;
+                      } else {
+                        useLINE = false;
+                      }
+                      if(useLINE) {
+                        try {
+                          let sendmsg = await axios.post('https://notify-api.line.me/api/notify', qs.stringify({
+                            message: item['訊息內容']
+                          }), {
+                            headers: {
+                              Authorization: 'Bearer ' + user.lineToken
+                            },
+                            withCredentials: true
+                          });
+                          if(sendmsg.data.status === 200) {
+                            log.msg = "LINE已送出";
+                            io.p2p.emit('bulkmsgsampleReport', user.name + countWord + "LINE訊息已送出");
+                            successlog.status = 1;
+                          } else {
+                            log.msg = "LINE發生錯誤";
+                            io.p2p.emit('bulkmsgsampleReport', user.name + countWord + "LINE訊息送出失敗");
+                            successlog.status = 0;
+                          }
+                        } catch(e) {
+                          log.msg = "LINE發生錯誤";
+                          io.p2p.emit('bulkmsgsampleReport', user.name + countWord + "LINE訊息送出失敗");
+                          successlog.status = 0;
+                        }
+                      } else {
+                        let transporter = nodemailer.createTransport({
+                          host: robotSetting.mailSMTP,
+                          port: robotSetting.mailPort,
+                          secure: robotSetting.mailSSL,
+                          auth: {
+                            user: robotSetting.mailAccount,
+                            pass: robotSetting.mailPassword,
+                          },
+                        });
+                        try {
+                          await transporter.sendMail({
+                            from: '"' + setting.systemName + '" <' + robotSetting.mailAccount + '>',
+                            to: user.email,
+                            subject: setting.systemName + "：訊息通知",
+                            text: item['訊息內容'], // plain text body
+                            html: marked(item['訊息內容']), // html body
+                          });
+                          log.msg = "Email已送出";
+                          io.p2p.emit('bulkmsgsampleReport', user.name + countWord + "Email已送出");
+                          successlog.status = 1;
+                        } catch(err) {
+                          log.msg = "Email發生錯誤";
+                          io.p2p.emit('bulkmsgsampleReport', user.name + countWord + "Email送出失敗");
+                          successlog.status = 0;
+                        }
+                      }
+                    }
+                    successArray.push(successlog);
+                    logDB.push(log);
+                  }
+                  await models.lineModel.create({ 
+                    tick: dayjs().unix(),
+                    body: "大量發送訊息不紀錄",
+                    log: successArray,
+                    type: 2
+                  });
+                  return io.p2p.emit('bulkmsgSent', logDB); 
+                } catch (e) {
+                  console.dir(e);
+                }
+              }
+            });
+          }));
+          delete files[data.uuid];
+        } catch (err) {
+          console.dir(err);
+          return io.p2p.emit('bulkmsgsampleUploadError', JSON.stringify(err)); 
+        };
+      } else { 
+        io.p2p.emit('requestbulkmsgsampleSlice', { 
             currentSlice: files[data.uuid].slice,
             uuid: data.uuid
         }); 

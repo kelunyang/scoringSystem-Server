@@ -740,5 +740,63 @@ export default function (io, models) {
     return;
   });
 
+  io.p2p.on('getGroupTags', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if('passport' in io.p2p.request.session) {
+        if('user' in io.p2p.request.session.passport) {
+          let uid = new ObjectId(io.p2p.request.session.passport.user);
+          let ids = _.map(data, (id) => {
+            return new ObjectId(id);
+          })
+          let group = await models.groupModel.aggregate([
+            {
+              $match: {
+                _id: {
+                  $in: ids
+                }
+              }
+            },
+            {
+              $project: {
+                tag: 1
+              }
+            },
+            {
+              $group: {
+                _id: undefined,
+                tags: {
+                  $addToSet: "$tag"
+                }
+              }
+            }
+          ]).exec();
+          io.p2p.emit('getGroupTags', group.length > 0 ? group[0].tags : []);
+          return;
+        }
+      }
+    }
+    return;
+  });
+
+  io.p2p.on('getTagGroups', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if('passport' in io.p2p.request.session) {
+        if('user' in io.p2p.request.session.passport) {
+          let uid = new ObjectId(io.p2p.request.session.passport.user);
+          let ids = _.map(data.ids, (id) => {
+            return new ObjectId(id);
+          });
+          let groups = await models.groupModel.find({
+            tid: new ObjectId(data.tid),
+            tag: { $in: ids }
+          }).select('_id').exec();
+          io.p2p.emit('getTagGroups', groups);
+          return;
+        }
+      }
+    }
+    return;
+  });
+
   return router;
 }

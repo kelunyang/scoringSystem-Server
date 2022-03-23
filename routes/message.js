@@ -6,6 +6,8 @@ import fs from 'fs-extra';
 import axios from 'axios';
 import qs from 'qs';
 import _ from 'lodash';
+import nodemailer from "nodemailer";
+import { marked } from 'marked';
 
 export default function (io, models) {
   
@@ -66,10 +68,11 @@ export default function (io, models) {
 
   io.p2p.on('sendLINEnotify', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
+      let robotSetting = await models.robotModel.findOne({}).exec();
+      let setting = await models.settingModel.findOne({}).exec();
       let users = null;
       if(data.type === 0) { users = await models.userModel.find({}).exec(); }
       if(data.type === 1) {
-        let setting = await models.settingModel.findOne({}).exec();
         users = await models.userModel.find({
           $in: {
             tags: setting.settingTags
@@ -81,7 +84,13 @@ export default function (io, models) {
       let failed = 0;
       for(let i=0; i< users.length; i++) {
         let user = users[i];
+        let useLINE = data.useLINE;
         if(!('lineToken' in user) || user.lineToken !== undefined) {
+          useLINE = useLINE ? data.useLINE : false;
+        } else {
+          useLINE = false;
+        }
+        if(useLINE) {
           try {
             let sendmsg = await axios.post('https://notify-api.line.me/api/notify', qs.stringify({
               message: data.body
@@ -116,12 +125,46 @@ export default function (io, models) {
             });
             failed++;
           }
+        } else {
+          let transporter = nodemailer.createTransport({
+            host: robotSetting.mailSMTP,
+            port: robotSetting.mailPort,
+            secure: robotSetting.mailSSL,
+            auth: {
+              user: robotSetting.mailAccount,
+              pass: robotSetting.mailPassword,
+            },
+          });
+          try {
+            await transporter.sendMail({
+              from: '"' + setting.systemName + '" <' + robotSetting.mailAccount + '>',
+              to: user.email,
+              subject: setting.systemName + "：訊息通知",
+              text: data.body, // plain text body
+              html: marked(data.body), // html body
+            });
+            successArray.push({
+              name: user.name,
+              uid: user._id,
+              tick: dayjs().unix(),
+              status: 1
+            });
+            success++;
+          } catch(err) {
+            successArray.push({
+              uid: user._id,
+              tick: dayjs().unix(),
+              status: 0
+            });
+            failed++;
+          }
         }
       }
       await models.lineModel.create({ 
         tick: dayjs().unix(),
         body: data.body,
-        log: successArray
+        log: successArray,
+        type: 0
       });
       io.p2p.emit('sendLINEnotify', {
         success: success,
