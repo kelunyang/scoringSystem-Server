@@ -711,49 +711,51 @@ export default function (io, models) {
             }
             if(overlapedCheck.length === 0) {
               let totalBalance = await getBalance(coworkers, schema._id);
-              if(data.value <= Math.floor(totalBalance[0].balance * schema.betRate)) {
-                let report = await models.reportModel.create({
-                  tick: now,
-                  sid: stage.sid,
-                  tid: stage._id,
-                  coworkers: coworkers,
-                  content: turndownService.turndown(data.content),
-                  audit: [],
-                  value: data.value,
-                  grantedUser: undefined,
-                  grantedDate: 0,
-                  grantedValue: 0,
-                  gained: 0,
-                  gid: group._id,
-                  visibility: true,
-                  tag: group.tag,
-                  locked: false,
-                  lockedTick: 0,
-                  totalBalance: Math.floor(totalBalance[0].balance)
-                });
-                stage.reports.push(report._id);
-                await stage.save();
-                let valueReport = Math.floor(data.value / coworkers.length) * -1;
-                for(let i=0; i<coworkers.length; i++) {
-                  let coworker = coworkers[i];
-                  await models.accountingModel.create({
+              if(totalBalance[0].balance > 0) {
+                if(data.value <= Math.floor(totalBalance[0].balance * schema.betRate)) {
+                  let report = await models.reportModel.create({
                     tick: now,
                     sid: stage.sid,
-                    uid: coworker,
-                    invalid: 0,
-                    desc: "投入報告信心點數",
-                    value: valueReport
+                    tid: stage._id,
+                    coworkers: coworkers,
+                    content: turndownService.turndown(data.content),
+                    audit: [],
+                    value: data.value,
+                    grantedUser: undefined,
+                    grantedDate: 0,
+                    grantedValue: 0,
+                    gained: 0,
+                    gid: group._id,
+                    visibility: true,
+                    tag: group.tag,
+                    locked: false,
+                    lockedTick: 0,
+                    totalBalance: Math.floor(totalBalance[0].balance)
                   });
-                  await models.eventlogModel.create({
-                    tick: now,
-                    type: '報告系統',
-                    desc: '發布報告',
-                    sid: schema._id,
-                    user: coworker
-                  });
+                  stage.reports.push(report._id);
+                  await stage.save();
+                  let valueReport = Math.floor(data.value / coworkers.length) * -1;
+                  for(let i=0; i<coworkers.length; i++) {
+                    let coworker = coworkers[i];
+                    await models.accountingModel.create({
+                      tick: now,
+                      sid: stage.sid,
+                      uid: coworker,
+                      invalid: 0,
+                      desc: "投入報告信心點數",
+                      value: valueReport
+                    });
+                    await models.eventlogModel.create({
+                      tick: now,
+                      type: '報告系統',
+                      desc: '發布報告',
+                      sid: schema._id,
+                      user: coworker
+                    });
+                  }
+                  io.p2p.emit('addReport', true);
+                  return;
                 }
-                io.p2p.emit('addReport', true);
-                return;
               }
             }
           }
@@ -814,49 +816,51 @@ export default function (io, models) {
               let evaluationGap = Math.ceil(totalGroups * schema.gapRate);
               if(evaluationGap > report.audits.length) {
                 let totalBalance = await getBalance(coworkers, data.sid);
-                let auditLimit = Math.floor(totalBalance[0].balance) > report.value ? report.value : Math.floor(totalBalance[0].balance);
-                auditLimit = report.value > auditLimit ? auditLimit : report.value;
-                if(data.value <= auditLimit) {
-                  let audit = await models.auditModel.create({
-                    tick: now,
-                    sid: report.sid,
-                    tid: report.tid,
-                    rid: report._id,
-                    coworkers: coworkers,
-                    content: turndownService.turndown(data.content),
-                    confirm: false,
-                    value: data.value,
-                    feedback: 0,
-                    feedbackUser: undefined,
-                    feedbackTick: 0,
-                    gained: 0,
-                    gid: group._id,
-                    short: data.short,
-                    totalBalance: Math.floor(totalBalance[0].balance)
-                  });
-                  report.audits.push(audit._id);
-                  await report.save();
-                  let valueReport = Math.floor(data.value / coworkers.length) * -1;
-                  for(let i=0; i<coworkers.length; i++) {
-                    let coworker = coworkers[i];
-                    await models.accountingModel.create({
+                if(totalBalance[0].balance > 0) {
+                  let auditLimit = Math.floor(totalBalance[0].balance) > report.value ? report.value : Math.floor(totalBalance[0].balance);
+                  auditLimit = report.value > auditLimit ? auditLimit : report.value;
+                  if(data.value <= auditLimit) {
+                    let audit = await models.auditModel.create({
                       tick: now,
                       sid: report.sid,
-                      uid: coworker,
-                      invalid: 0,
-                      desc: "投入評分信心點數",
-                      value: valueReport
+                      tid: report.tid,
+                      rid: report._id,
+                      coworkers: coworkers,
+                      content: turndownService.turndown(data.content),
+                      confirm: false,
+                      value: data.value,
+                      feedback: 0,
+                      feedbackUser: undefined,
+                      feedbackTick: 0,
+                      gained: 0,
+                      gid: group._id,
+                      short: data.short,
+                      totalBalance: Math.floor(totalBalance[0].balance)
                     });
-                    await models.eventlogModel.create({
-                      tick: now,
-                      type: '評分系統',
-                      desc: '發布評分',
-                      sid: schema._id,
-                      user: coworker
-                    });
+                    report.audits.push(audit._id);
+                    await report.save();
+                    let valueReport = Math.floor(data.value / coworkers.length) * -1;
+                    for(let i=0; i<coworkers.length; i++) {
+                      let coworker = coworkers[i];
+                      await models.accountingModel.create({
+                        tick: now,
+                        sid: report.sid,
+                        uid: coworker,
+                        invalid: 0,
+                        desc: "投入評分信心點數",
+                        value: valueReport
+                      });
+                      await models.eventlogModel.create({
+                        tick: now,
+                        type: '評分系統',
+                        desc: '發布評分',
+                        sid: schema._id,
+                        user: coworker
+                      });
+                    }
+                    io.p2p.emit('addAudit', true);
+                    return;
                   }
-                  io.p2p.emit('addAudit', true);
-                  return;
                 }
               }
             }
@@ -1026,59 +1030,61 @@ export default function (io, models) {
           });
           if(ownerCheck.length > 0) {
             let totalBalance = await getBalance([uid], audit.sid);
-            if(data.feedback <= totalBalance[0].balance) {
-              let now = dayjs().unix();
-              audit.feedback = data.feedback;
-              audit.feedbackUser = uid;
-              audit.feedbackTick = now;
-              await report.save();
-              await audit.save();
-              await models.accountingModel.create({
-                tick: now,
-                sid: report.sid,
-                uid: uid,
-                invalid: 0,
-                desc: "確認評分結果",
-                value: (data.value * -1)
-              });
-              let feedbacked = await models.auditModel.find({
-                rid: audit.rid,
-                feedbackTick: { $gt: 0 }
-              });
-              if(!stage.matchPoint) {
-                if(!report.locked) {
-                  let totalGroups = schema.groups.length;
-                  if(schema.tagGroupped) {
-                    let sameGroup = await models.groupModel.find({
-                      tag: group.tag,
-                      sid: schema._id
-                    }).exec();
-                    totalGroups = sameGroup.length;
-                  }
-                  let evaluationGap = Math.ceil(totalGroups * schema.gapRate);
-                  evaluationGap = report.audits.length > evaluationGap ? report.audits.length : evaluationGap;
-                  if(feedbacked.length >= evaluationGap) {
-                    if(report.gained === 0) {
-                      let falseCheck = _.filter(feedbacked, (audit) => {
-                        return audit.short;
-                      });
-                      if(falseCheck.length === 0) {
-                        await evaluatedAudit(report._id, undefined);
-                        await evaluatedReport(report._id, undefined);
+            if(totalBalance[0].balance > 0) {
+              if(data.feedback <= totalBalance[0].balance) {
+                let now = dayjs().unix();
+                audit.feedback = data.feedback;
+                audit.feedbackUser = uid;
+                audit.feedbackTick = now;
+                await report.save();
+                await audit.save();
+                await models.accountingModel.create({
+                  tick: now,
+                  sid: report.sid,
+                  uid: uid,
+                  invalid: 0,
+                  desc: "確認評分結果",
+                  value: (data.feedback * -1)
+                });
+                let feedbacked = await models.auditModel.find({
+                  rid: audit.rid,
+                  feedbackTick: { $gt: 0 }
+                });
+                if(!stage.matchPoint) {
+                  if(!report.locked) {
+                    let totalGroups = schema.groups.length;
+                    if(schema.tagGroupped) {
+                      let sameGroup = await models.groupModel.find({
+                        tag: group.tag,
+                        sid: schema._id
+                      }).exec();
+                      totalGroups = sameGroup.length;
+                    }
+                    let evaluationGap = Math.ceil(totalGroups * schema.gapRate);
+                    evaluationGap = report.audits.length > evaluationGap ? report.audits.length : evaluationGap;
+                    if(feedbacked.length >= evaluationGap) {
+                      if(report.gained === 0) {
+                        let falseCheck = _.filter(feedbacked, (audit) => {
+                          return audit.short;
+                        });
+                        if(falseCheck.length === 0) {
+                          await evaluatedAudit(report._id, undefined);
+                          await evaluatedReport(report._id, undefined);
+                        }
                       }
                     }
                   }
                 }
+                await models.eventlogModel.create({
+                  tick: now,
+                  type: '報告系統',
+                  desc: '確認評分結果',
+                  sid: report.sid,
+                  user: uid
+                });
+                io.p2p.emit('auditFeedback', true);
+                return;
               }
-              await models.eventlogModel.create({
-                tick: now,
-                type: '報告系統',
-                desc: '確認評分結果',
-                sid: report.sid,
-                user: uid
-              });
-              io.p2p.emit('auditFeedback', true);
-              return;
             }
           }
         }
