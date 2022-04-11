@@ -785,5 +785,11 @@ export default async function (models) {
       authRange: [],
       loginRequire: true
     },
+    noreplyStage: {
+      action: '關閉該階段的評分',
+      where: '活動模組',
+      authRange: [],
+      loginRequire: true
+    },
   }
 }

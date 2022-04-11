@@ -325,6 +325,7 @@ export default function (io, models) {
                 value: stage.value,
                 sid: stage.sid,
                 closed: stage.closed,
+                replyDisabled: stage.replyDisabled,
                 reports: _.map(reports, (report) => {
                   return report._id;
                 }),
@@ -440,7 +441,8 @@ export default function (io, models) {
               reports: [],
               sid: schema._id,
               matchPoint: false,
-              closed: 0
+              closed: 0,
+              replyDisabled: 0
             });
             schema.stages.push(stage._id);
             await schema.save();
@@ -661,6 +663,55 @@ export default function (io, models) {
               user: currentUserID
             });
             io.p2p.emit('closeStage', true);
+            return;
+          }
+        }
+      }
+    }
+    io.p2p.emit('accessViolation', {
+      where: '活動管理',
+      tick: dayjs().unix(),
+      action: '關閉活動階段',
+      loginRequire: false
+    });
+    return;
+  });
+
+  io.p2p.on('noreplyStage', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if('passport' in io.p2p.request.session) {
+        if('user' in io.p2p.request.session.passport) {
+          let now = dayjs().unix();
+          let currentUserID = new ObjectId(io.p2p.request.session.passport.user);
+          let globalSetting = await models.settingModel.findOne({}).exec();
+          let uid = new ObjectId(io.p2p.request.session.passport.user);
+          let user = await models.userModel.findOne({
+            _id: uid
+          }).exec();
+          let authorizedTags = _.flatten(globalSetting.settingTags, globalSetting.projectTags)
+          let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
+            return sTag.equals(uTag);
+          })
+          let stage = await models.stageModel.findOne({
+            _id: new ObjectId(data._id)
+          }).exec();
+          let schema = await models.schemaModel.findOne({
+            _id: stage.sid
+          }).exec();
+          let supervisorCheck = _.filter(schema.supervisors, (supervisor) => {
+            return supervisor.equals(user._id);
+          });
+          if(globalCheck.length > 0 || supervisorCheck.length > 0) {
+            stage.replyDisabled = stage.replyDisabled > 0 ? 0 : now;
+            await stage.save();
+            let event = await models.eventlogModel.create({
+              tick: now,
+              type: '活動管理',
+              desc: '禁止活動階段評分',
+              sid: schema._id,
+              user: currentUserID
+            });
+            io.p2p.emit('noreplyStage', true);
             return;
           }
         }

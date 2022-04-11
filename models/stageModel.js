@@ -22,7 +22,8 @@ export default function (mongoose) {
     ],
     desc: String,
     matchPoint: Boolean,
-    closed: Number
+    closed: Number,
+    replyDisabled: Number
   }, { collection: 'stageDB' });
   return mongoose.model('stageModel', stageModel);
 }
