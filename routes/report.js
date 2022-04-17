@@ -298,6 +298,7 @@ export default function (io, models) {
       let expired = timeValue > 0 ? 1 : 0;
       timeValue = score === 0 ? 0 : timeValue;
       let rankWord = "";
+      let proceedDeposit = true;
       if(stage.matchPoint) {
         let groupedReports = [];
         if(schema.tagGroupped) {
@@ -308,6 +309,9 @@ export default function (io, models) {
             visibility: true
           }).exec();
         }
+        proceedDeposit = _.filter(groupedReports, (report) => {
+          return report.grantedDate === 0;
+        }).length === 0;
         let sortedReports = _.orderBy(groupedReports, ['grantedValue'], ['desc']);
         let rank = sortedReports.length;
         let realRank = 1;
@@ -327,42 +331,16 @@ export default function (io, models) {
         valueMember = ((score * schema.memberRate) * expired) + timeValue + report.grantedValue;
         valueLeader = ((score * schema.leaderRate) * expired) + timeValue + report.grantedValue;
       }
-      for(let u=0; u< report.coworkers.length; u++) {
-        let user = report.coworkers[u];
-        await models.accountingModel.create({
-          tick: now,
-          sid: schema._id,
-          uid: user,
-          invalid: 0,
-          desc: "報告得點（負責人）" + rankWord + ignoreTip,
-          value: valueWorker
-        });
-        await models.eventlogModel.create({
-          tick: now,
-          type: '報告系統',
-          desc: '發點數',
-          sid: schema._id,
-          user: user
-        });
-      }
-      let audits = await models.auditModel.find({
-        rid: report._id,
-        gained: { $gt: 0 },
-        feedbackUser: { $nin: report.coworkers }
-      }).exec();
-      let feedbackers = [];
-      for(let i=0; i<audits.length; i++) {
-        if(audits[i].feedbackTick > 0) {
-          let user = audits[i].feedbackUser;
-          feedbackers.push(user);
-          let feedbackRate = Math.ceil(audits[i].feedback / (report.grantedValue / report.coworkers.length));
+      if(proceedDeposit) {
+        for(let u=0; u< report.coworkers.length; u++) {
+          let user = report.coworkers[u];
           await models.accountingModel.create({
             tick: now,
             sid: schema._id,
             uid: user,
             invalid: 0,
-            desc: "報告得點（確認評分者）" + rankWord + ignoreTip,
-            value: valueWorker * feedbackRate
+            desc: "報告得點（負責人）" + rankWord + ignoreTip,
+            value: valueWorker
           });
           await models.eventlogModel.create({
             tick: now,
@@ -372,60 +350,88 @@ export default function (io, models) {
             user: user
           });
         }
+        let audits = await models.auditModel.find({
+          rid: report._id,
+          gained: { $gt: 0 },
+          feedbackUser: { $nin: report.coworkers }
+        }).exec();
+        let feedbackers = [];
+        for(let i=0; i<audits.length; i++) {
+          if(audits[i].feedbackTick > 0) {
+            let user = audits[i].feedbackUser;
+            feedbackers.push(user);
+            let feedbackRate = Math.ceil(audits[i].feedback / (report.grantedValue / report.coworkers.length));
+            await models.accountingModel.create({
+              tick: now,
+              sid: schema._id,
+              uid: user,
+              invalid: 0,
+              desc: "報告得點（確認評分者）" + rankWord + ignoreTip,
+              value: valueWorker * feedbackRate
+            });
+            await models.eventlogModel.create({
+              tick: now,
+              type: '報告系統',
+              desc: '發點數',
+              sid: schema._id,
+              user: user
+            });
+          }
+        }
+        let coworkers = _.unionWith(report.coworkers, feedbackers, (coworker, feedbacker) => {
+          return coworker.equals(feedbacker);
+        });
+        let normalMembers = _.differenceWith(members, coworkers, (member, coworker) => {
+          return member.equals(coworker);
+        });
+        normalMembers = _.differenceWith(normalMembers, group.leaders, (member, leader) => {
+          return member.equals(leader);
+        });
+        for(let i=0; i<normalMembers.length; i++) {
+          let member = normalMembers[i];
+          await models.accountingModel.create({
+            tick: now,
+            sid: schema._id,
+            uid: member,
+            invalid: 0,
+            desc: "報告得點（組員）" + rankWord + ignoreTip,
+            value: valueMember
+          });
+          await models.eventlogModel.create({
+            tick: now,
+            type: '報告系統',
+            desc: '發點數',
+            sid: schema._id,
+            user: member
+          });
+        }
+        let leaders = _.differenceWith(members, coworkers, (member, coworker) => {
+          return member.equals(coworker);
+        });
+        leaders = _.differenceWith(leaders, group.members, (leader, gmember) => {
+          return leader.equals(gmember);
+        });
+        for(let i=0; i<leaders.length; i++) {
+          let leader = leaders[i];
+          await models.accountingModel.create({
+            tick: now,
+            sid: schema._id,
+            uid: leader,
+            invalid: 0,
+            desc: "報告得點（組長）" + rankWord + ignoreTip,
+            value: valueLeader
+          });
+          await models.eventlogModel.create({
+            tick: now,
+            type: '報告系統',
+            desc: '發點數',
+            sid: schema._id,
+            user: leader
+          });
+        }
+        report.gained = now;
+        await report.save();
       }
-      let coworkers = _.unionWith(report.coworkers, feedbackers, (coworker, feedbacker) => {
-        return coworker.equals(feedbacker);
-      });
-      let normalMembers = _.differenceWith(members, coworkers, (member, coworker) => {
-        return member.equals(coworker);
-      });
-      normalMembers = _.differenceWith(normalMembers, group.leaders, (member, leader) => {
-        return member.equals(leader);
-      });
-      for(let i=0; i<normalMembers.length; i++) {
-        let member = normalMembers[i];
-        await models.accountingModel.create({
-          tick: now,
-          sid: schema._id,
-          uid: member,
-          invalid: 0,
-          desc: "報告得點（組員）" + rankWord + ignoreTip,
-          value: valueMember
-        });
-        await models.eventlogModel.create({
-          tick: now,
-          type: '報告系統',
-          desc: '發點數',
-          sid: schema._id,
-          user: member
-        });
-      }
-      let leaders = _.differenceWith(members, coworkers, (member, coworker) => {
-        return member.equals(coworker);
-      });
-      leaders = _.differenceWith(leaders, group.members, (leader, gmember) => {
-        return leader.equals(gmember);
-      });
-      for(let i=0; i<leaders.length; i++) {
-        let leader = leaders[i];
-        await models.accountingModel.create({
-          tick: now,
-          sid: schema._id,
-          uid: leader,
-          invalid: 0,
-          desc: "報告得點（組長）" + rankWord + ignoreTip,
-          value: valueLeader
-        });
-        await models.eventlogModel.create({
-          tick: now,
-          type: '報告系統',
-          desc: '發點數',
-          sid: schema._id,
-          user: leader
-        });
-      }
-      report.gained = now;
-      await report.save();
     }
   }
 
