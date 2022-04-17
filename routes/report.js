@@ -312,20 +312,22 @@ export default function (io, models) {
         proceedDeposit = _.filter(groupedReports, (report) => {
           return report.grantedDate === 0;
         }).length === 0;
-        let sortedReports = _.orderBy(groupedReports, ['grantedValue'], ['desc']);
-        let rank = sortedReports.length;
-        let realRank = 1;
-        for(let i=0; i<sortedReports.length; i++) {
-          if(sortedReports[i]._id.equals(report._id)) {
-            break;
+        if(proceedDeposit) {
+          let sortedReports = _.orderBy(groupedReports, ['grantedValue'], ['desc']);
+          let rank = sortedReports.length;
+          let realRank = 1;
+          for(let i=0; i<sortedReports.length; i++) {
+            if(sortedReports[i]._id.equals(report._id)) {
+              break;
+            }
+            realRank++;
+            rank--;
           }
-          realRank++;
-          rank--;
+          rankWord = "[第" + realRank +"名]";
+          valueWorker = ((score * schema.workerRate) * expired * rank) + timeValue + report.grantedValue;
+          valueMember = ((score * schema.memberRate) * expired * rank) + timeValue + report.grantedValue;
+          valueLeader = ((score * schema.leaderRate) * expired * rank) + timeValue + report.grantedValue;
         }
-        rankWord = "[第" + realRank +"名]";
-        valueWorker = ((score * schema.workerRate) * expired * rank) + timeValue + report.grantedValue;
-        valueMember = ((score * schema.memberRate) * expired * rank) + timeValue + report.grantedValue;
-        valueLeader = ((score * schema.leaderRate) * expired * rank) + timeValue + report.grantedValue;
       } else {
         valueWorker = ((score * schema.workerRate) * expired) + timeValue + report.grantedValue;
         valueMember = ((score * schema.memberRate) * expired) + timeValue + report.grantedValue;
@@ -1312,17 +1314,19 @@ export default function (io, models) {
               return a.equals(b);
             })
             let totalBalance = await getBalance(coworkers, schema._id);
-            let maxBet = Math.floor(totalBalance[0].balance * schema.betRate);
-            let timeValue = stage.endTick - now;
-            timeValue = Math.ceil((data.value / maxBet) * timeValue);
-            timeValue = timeValue > 0 ? timeValue : 0;
-            let expired = timeValue > 0 ? 1 : 0;
-            timeValue = data.value === 0 ? 0 : timeValue;
-            let previewScore = ((data.value * schema.workerRate) * stage.value * expired) + timeValue + data.value;
-            io.p2p.emit('previewReport', {
-              query: data.value,
-              score: previewScore
-            });
+            if(totalBalance.length > 0) {
+              let maxBet = Math.floor(totalBalance[0].balance * schema.betRate);
+              let timeValue = stage.endTick - now;
+              timeValue = Math.ceil((data.value / maxBet) * timeValue);
+              timeValue = timeValue > 0 ? timeValue : 0;
+              let expired = timeValue > 0 ? 1 : 0;
+              timeValue = data.value === 0 ? 0 : timeValue;
+              let previewScore = ((data.value * schema.workerRate) * stage.value * expired) + timeValue + data.value;
+              io.p2p.emit('previewReport', {
+                query: data.value,
+                score: previewScore
+              });
+            }
             return;
           }
         }
