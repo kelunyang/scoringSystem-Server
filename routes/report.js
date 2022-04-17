@@ -8,12 +8,15 @@ const turndownService = new TurndownService();
 
 export default function (io, models) {
   let sameTaggedGroup = async(gid, tid) => {
+    let stage = await models.stageModel.findOne({
+      _id: new ObjectId(tid)
+    }).exec();
     let tagGroup = await models.groupModel.findOne({
       _id: new ObjectId(gid)
     }).exec();
     let sameGroup = await models.groupModel.find({
       tag: tagGroup.tag,
-      sid: schema._id
+      sid: stage.sid
     }).exec();
     let queryGroup = _.map(sameGroup, (group) => {
       return group._id;
