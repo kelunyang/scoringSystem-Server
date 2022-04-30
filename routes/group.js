@@ -203,7 +203,7 @@ export default function (io, models) {
           let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
             return sTag.equals(uTag);
           });
-          if(supervisorCheck.length > 0 || globalCheck > 0) {
+          if(supervisorCheck.length > 0 || globalCheck.length > 0) {
             let groups = await getGroups(data.sid);
             io.p2p.emit('getGroups', groups);
           } else {
@@ -483,7 +483,7 @@ export default function (io, models) {
           let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
             return sTag.equals(uTag);
           });
-          if(supervisorCheck.length > 0 || globalCheck > 0) {
+          if(supervisorCheck.length > 0 || globalCheck.length > 0) {
             let tag = new ObjectId(data.tag);
             for(let i=0; i<data.groupCount; i++) {
               let group = await models.groupModel.create({ 
@@ -544,7 +544,7 @@ export default function (io, models) {
           let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
             return sTag.equals(uTag);
           });
-          if(supervisorCheck.length > 0 || globalCheck > 0) {
+          if(supervisorCheck.length > 0 || globalCheck.length > 0) {
             if(group !== null) {
               schema.groups = _.filter(schema.groups, (sgroup) => {
                 return !sgroup._id.equals(group._id);
@@ -600,7 +600,7 @@ export default function (io, models) {
           let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
             return sTag.equals(uTag);
           });
-          if(supervisorCheck.length > 0 || globalCheck > 0) {
+          if(supervisorCheck.length > 0 || globalCheck.length > 0) {
             group.locked = data.locked;
             group.modTick = now;
             await group.save();
@@ -650,7 +650,7 @@ export default function (io, models) {
           let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
             return sTag.equals(uTag);
           });
-          if(supervisorCheck.length > 0 || globalCheck > 0) {
+          if(supervisorCheck.length > 0 || globalCheck.length > 0) {
             group.tag = data.tag;
             group.modTick = now;
             await group.save();
@@ -697,7 +697,7 @@ export default function (io, models) {
           let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
             return sTag.equals(uTag);
           });
-          if(supervisorCheck.length > 0 || globalCheck > 0) {
+          if(supervisorCheck.length > 0 || globalCheck.length > 0) {
             let allGroupped = (await getGrouped(data));
             if(allGroupped.length > 0) {
               let inSchema = allGroupped[0].allMemebers;

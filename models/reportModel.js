@@ -45,7 +45,13 @@ export default function (mongoose) {
     },
     locked: Boolean,
     lockedTick: Number,
-    totalBalance: Number
+    totalBalance: Number,
+    intervention: [
+      {
+        type: ObjectID,
+        ref: 'interventionModel'
+      }
+    ]
   }, { collection: 'reportDB' });
   return mongoose.model('reportModel', reportModel);
 }

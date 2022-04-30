@@ -47,6 +47,7 @@ import reportMJS from './models/reportModel.js';
 import schemaMJS from './models/schemaModel.js';
 import stageMJS from './models/stageModel.js';
 import eventlogMJS from './models/eventlogModel.js';
+import interventionMJS from './models/interventionModel.js';
 const eventlogModel = eventlogMJS(mongoose);
 const settingModel = settingMJS(mongoose);
 const robotModel = robotMJS(mongoose);
@@ -67,27 +68,29 @@ const reportModel = reportMJS(mongoose);
 const groupModel = groupMJS(mongoose);
 const auditModel = auditMJS(mongoose);
 const accountingModel = accountingMJS(mongoose);
+const interventionModel = interventionMJS(mongoose);
 const modelList = {
-    messageModel: systemmessageModel,
-    logModel: logModel,
-    settingModel: settingModel,
-    robotModel: robotModel,
-    userModel: userModel,
-    tagModel: tagModel,
-    lineModel: lineModel,
-    fileModel: fileModel,
-    broadcastModel: broadcastModel,
-    feedbackModel: feedbackModel,
-    activeuserModel: activeuserModel,
-    sessionModel: sessionModel,
-    notifytemplateModel: notifytemplateModel,
-    stageModel: stageModel,
-    schemaModel: schemaModel,
-    reportModel: reportModel,
-    groupModel: groupModel,
-    auditModel: auditModel,
-    accountingModel: accountingModel,
-    eventlogModel: eventlogModel
+  messageModel: systemmessageModel,
+  logModel: logModel,
+  settingModel: settingModel,
+  robotModel: robotModel,
+  userModel: userModel,
+  tagModel: tagModel,
+  lineModel: lineModel,
+  fileModel: fileModel,
+  broadcastModel: broadcastModel,
+  feedbackModel: feedbackModel,
+  activeuserModel: activeuserModel,
+  sessionModel: sessionModel,
+  notifytemplateModel: notifytemplateModel,
+  stageModel: stageModel,
+  schemaModel: schemaModel,
+  reportModel: reportModel,
+  groupModel: groupModel,
+  auditModel: auditModel,
+  accountingModel: accountingModel,
+  eventlogModel: eventlogModel,
+  interventionModel: interventionModel
 };
 
 //controller

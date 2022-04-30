@@ -11,6 +11,12 @@ export default function (mongoose) {
       type: ObjectID,
       ref: 'groupModel'
     },
+    intervention: [
+      {
+        type: ObjectID,
+        ref: 'interventionModel'
+      }
+    ],
     coworkers: [
       {
         type: ObjectID,

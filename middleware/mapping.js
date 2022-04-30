@@ -791,5 +791,17 @@ export default async function (models) {
       authRange: [],
       loginRequire: true
     },
+    addIntervention: {
+      action: '給予人為評分調整',
+      where: '評分模組',
+      authRange: [],
+      loginRequire: true
+    },
+    getInterventions: {
+      action: '查詢人為評分調整',
+      where: '評分模組',
+      authRange: [],
+      loginRequire: true
+    },
   }
 }

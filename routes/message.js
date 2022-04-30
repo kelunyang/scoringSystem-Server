@@ -70,52 +70,95 @@ export default function (io, models) {
     if(io.p2p.request.session.status.type === 3) {
       if('passport' in io.p2p.request.session) {
         if('user' in io.p2p.request.session.passport) {
-          let robotSetting = await models.robotModel.findOne({}).exec();
-          let setting = await models.settingModel.findOne({}).exec();
-          let users = [];
-          if(data.type === 0) { 
-            users = await models.userModel.find({
-              tags: {
-                $nin: [setting.robotTag]
-              }
-            }).exec();
-          }
-          if(data.type === 1) {
-            let userObj = await models.userModel.findOne({
-              _id: new ObjectId(io.p2p.request.session.passport.user)
-            }).exec();
-            data.body += userObj !== null ? "[來自" + userObj.name + "(" + userObj.email + ")" + "，發送者和管理員們都會得到一份抄本]" : "";
-            users = await models.userModel.find({
-              tags: {
-                $in: setting.settingTags
-              }
-            }).exec();
-            users = _.unionWith([userObj], users, (uo, us) => {
-              return uo._id.equals(us._id);
-            });
-          }
-          let successArray = new Array();
-          let success = 0;
-          let failed = 0;
-          for(let i=0; i< users.length; i++) {
-            let user = users[i];
-            let useLINE = data.useLINE;
-            if(!('lineToken' in user) || user.lineToken !== undefined) {
-              useLINE = useLINE ? data.useLINE : false;
-            } else {
-              useLINE = false;
+          if(data.body !== "") {
+            let robotSetting = await models.robotModel.findOne({}).exec();
+            let setting = await models.settingModel.findOne({}).exec();
+            let users = [];
+            if(data.type === 0) { 
+              users = await models.userModel.find({
+                tags: {
+                  $nin: [setting.robotTag]
+                }
+              }).exec();
             }
-            if(useLINE) {
-              try {
-                let sendmsg = await axios.post('https://notify-api.line.me/api/notify', qs.stringify({
-                  message: data.body
-                }), {
-                  headers: {
-                    Authorization: 'Bearer ' + user.lineToken
+            if(data.type === 1) {
+              let userObj = await models.userModel.findOne({
+                _id: new ObjectId(io.p2p.request.session.passport.user)
+              }).exec();
+              data.body += userObj !== null ? "[來自" + userObj.name + "(" + userObj.email + ")" + "，發送者和管理員們都會得到一份抄本]" : "";
+              users = await models.userModel.find({
+                tags: {
+                  $in: setting.settingTags
+                }
+              }).exec();
+              users = _.unionWith([userObj], users, (uo, us) => {
+                return uo._id.equals(us._id);
+              });
+            }
+            let successArray = new Array();
+            let success = 0;
+            let failed = 0;
+            for(let i=0; i< users.length; i++) {
+              let user = users[i];
+              let useLINE = data.useLINE;
+              if(!('lineToken' in user) || user.lineToken !== undefined) {
+                useLINE = useLINE ? data.useLINE : false;
+              } else {
+                useLINE = false;
+              }
+              if(useLINE) {
+                try {
+                  let sendmsg = await axios.post('https://notify-api.line.me/api/notify', qs.stringify({
+                    message: data.body
+                  }), {
+                    headers: {
+                      Authorization: 'Bearer ' + user.lineToken
+                    },
+                    withCredentials: true
+                  });
+                  if(sendmsg.data.status === 200) {
+                    successArray.push({
+                      name: user.name,
+                      uid: user._id,
+                      tick: dayjs().unix(),
+                      status: 1
+                    });
+                    success++;
+                  } else {
+                    successArray.push({
+                      name: user.name,
+                      uid: user._id,
+                      tick: dayjs().unix(),
+                      status: 2
+                    });
+                    failed++;
+                  }
+                } catch(e) {
+                  successArray.push({
+                    uid: user._id,
+                    tick: dayjs().unix(),
+                    status: 0
+                  });
+                  failed++;
+                }
+              } else {
+                let transporter = nodemailer.createTransport({
+                  host: robotSetting.mailSMTP,
+                  port: robotSetting.mailPort,
+                  secure: robotSetting.mailSSL,
+                  auth: {
+                    user: robotSetting.mailAccount,
+                    pass: robotSetting.mailPassword,
                   },
-                  withCredentials: true
                 });
-                if(sendmsg.data.status === 200) {
+                try {
+                  await transporter.sendMail({
+                    from: '"' + setting.systemName + '" <' + robotSetting.mailAccount + '>',
+                    to: user.email,
+                    subject: setting.systemName + "：訊息通知",
+                    text: data.body, // plain text body
+                    html: marked(data.body), // html body
+                  });
                   successArray.push({
                     name: user.name,
                     uid: user._id,
@@ -123,68 +166,27 @@ export default function (io, models) {
                     status: 1
                   });
                   success++;
-                } else {
+                } catch(err) {
                   successArray.push({
-                    name: user.name,
                     uid: user._id,
                     tick: dayjs().unix(),
-                    status: 2
+                    status: 0
                   });
                   failed++;
                 }
-              } catch(e) {
-                successArray.push({
-                  uid: user._id,
-                  tick: dayjs().unix(),
-                  status: 0
-                });
-                failed++;
-              }
-            } else {
-              let transporter = nodemailer.createTransport({
-                host: robotSetting.mailSMTP,
-                port: robotSetting.mailPort,
-                secure: robotSetting.mailSSL,
-                auth: {
-                  user: robotSetting.mailAccount,
-                  pass: robotSetting.mailPassword,
-                },
-              });
-              try {
-                await transporter.sendMail({
-                  from: '"' + setting.systemName + '" <' + robotSetting.mailAccount + '>',
-                  to: user.email,
-                  subject: setting.systemName + "：訊息通知",
-                  text: data.body, // plain text body
-                  html: marked(data.body), // html body
-                });
-                successArray.push({
-                  name: user.name,
-                  uid: user._id,
-                  tick: dayjs().unix(),
-                  status: 1
-                });
-                success++;
-              } catch(err) {
-                successArray.push({
-                  uid: user._id,
-                  tick: dayjs().unix(),
-                  status: 0
-                });
-                failed++;
               }
             }
+            await models.lineModel.create({ 
+              tick: dayjs().unix(),
+              body: data.body,
+              log: successArray,
+              type: 0
+            });
+            io.p2p.emit('sendLINEnotify', {
+              success: success,
+              failed: failed
+            });
           }
-          await models.lineModel.create({ 
-            tick: dayjs().unix(),
-            body: data.body,
-            log: successArray,
-            type: 0
-          });
-          io.p2p.emit('sendLINEnotify', {
-            success: success,
-            failed: failed
-          });
         }
       }
     }

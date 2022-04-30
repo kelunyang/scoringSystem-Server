@@ -292,7 +292,7 @@ export default function (io, models) {
             return sTag.equals(uTag);
           });
           let queryData = [];
-          if(supervisorCheck.length > 0 || globalCheck > 0) {
+          if(supervisorCheck.length > 0 || globalCheck.length > 0) {
             if(data.uids === undefined) {
               queryData = (await getGrouped(sid))[0].allMemebers
             } else if(data.uids.length === 0) {
@@ -356,7 +356,7 @@ export default function (io, models) {
           let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
             return sTag.equals(uTag);
           })
-          if(supervisorCheck.length > 0 || globalCheck > 0) {
+          if(supervisorCheck.length > 0 || globalCheck.length > 0) {
             accounting.invalid = accounting.invalid === 0 ? now : 0;
             await accounting.save();
             await models.eventlogModel.create({

@@ -152,10 +152,36 @@ export default function (io, models) {
         tick: { $first: "$tick"},
         tid: { $first: "$tid"},
         value: { $first: "$value"},
-        visibility: { $first: "$visibility"}
+        visibility: { $first: "$visibility"},
+        intervention: { $first: "$intervention"}
       }
     });
     return await models.reportModel.aggregate(queryCmd);
+  }
+
+  let getInterventions = async (iids) => {
+    let iid = _.map(iids, (id) => {
+      return new ObjectId(id);
+    });
+    let interventions = await models.interventionModel.find({
+      _id: { $in: iid }
+    })
+    .populate('user', '-password -lineToken -lineCode')
+    .sort({ tick: -1 })
+    .exec();
+    return interventions;
+  }
+
+  let calcIntervention = async(value, object) => {
+    if(object.intervention.length > 0) {
+      let interventions = await getInterventions(object.intervention);
+      let finalIntervention = _.meanBy(interventions, (intervent) => {
+        return intervent.value;
+      });
+      return Math.ceil(value * (finalIntervention / 100));
+    } else {
+      return value;
+    }
   }
 
   let getReport = async (rid) => {
@@ -201,7 +227,7 @@ export default function (io, models) {
       maxBet = maxBet <= 0 ? 1 : maxBet;
       let timeValue = Math.abs(stage.endTick - report.tick);
       timeValue = Math.ceil((audit.value / maxBet) * timeValue);
-      let valueAudit = (auditScore + Math.ceil(timeValue * (rankRate / audits.length)));
+      let valueAudit = auditScore + Math.ceil(timeValue * (rankRate / audits.length));
       if(audit.gained === 0) {
         for(let u=0; u< audit.coworkers.length; u++) {
           let user = audit.coworkers[u];
@@ -211,7 +237,7 @@ export default function (io, models) {
             uid: user,
             invalid: 0,
             desc: "評分前(" + (i+1) + "/" + audits.length + ")名得點（負責人）" + shortTip,
-            value: valueAudit * schema.workerRate
+            value: await calcIntervention(valueAudit * schema.workerRate, audit)
           });
           await models.eventlogModel.create({
             tick: now,
@@ -235,7 +261,7 @@ export default function (io, models) {
             uid: member,
             invalid: 0,
             desc: "評分前(" + (i+1) + "/" + audits.length + ")名得點（組員）",
-            value: valueAudit * schema.memberRate
+            value: await calcIntervention(valueAudit * schema.memberRate, audit)
           });
           await models.eventlogModel.create({
             tick: now,
@@ -259,7 +285,7 @@ export default function (io, models) {
             uid: member,
             invalid: 0,
             desc: "評分前(" + (i+1) + "/" + audits.length + ")名得點（組長）",
-            value: valueAudit * schema.leaderRate
+            value: await calcIntervention(valueAudit * schema.leaderRate, audit)
           });
           await models.eventlogModel.create({
             tick: now,
@@ -324,14 +350,14 @@ export default function (io, models) {
             rank--;
           }
           rankWord = "[第" + realRank +"名]";
-          valueWorker = ((score * schema.workerRate) * expired * rank) + timeValue + report.grantedValue;
-          valueMember = ((score * schema.memberRate) * expired * rank) + timeValue + report.grantedValue;
-          valueLeader = ((score * schema.leaderRate) * expired * rank) + timeValue + report.grantedValue;
+          valueWorker = await calcIntervention(((score * schema.workerRate) * expired * rank) + timeValue + report.grantedValue, report);
+          valueMember = await calcIntervention(((score * schema.memberRate) * expired * rank) + timeValue + report.grantedValue, report);
+          valueLeader = await calcIntervention(((score * schema.leaderRate) * expired * rank) + timeValue + report.grantedValue, report);
         }
       } else {
-        valueWorker = ((score * schema.workerRate) * expired) + timeValue + report.grantedValue;
-        valueMember = ((score * schema.memberRate) * expired) + timeValue + report.grantedValue;
-        valueLeader = ((score * schema.leaderRate) * expired) + timeValue + report.grantedValue;
+        valueWorker = await calcIntervention(((score * schema.workerRate) * expired) + timeValue + report.grantedValue, report);
+        valueMember = await calcIntervention(((score * schema.memberRate) * expired) + timeValue + report.grantedValue, report);
+        valueLeader = await calcIntervention(((score * schema.leaderRate) * expired) + timeValue + report.grantedValue, report);
       }
       if(proceedDeposit) {
         for(let u=0; u< report.coworkers.length; u++) {
@@ -580,7 +606,7 @@ export default function (io, models) {
         let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
           return sTag.equals(uTag);
         })
-        if(leaderCheck.length > 0 || supervisorCheck.length > 0 || globalCheck > 0) {
+        if(leaderCheck.length > 0 || supervisorCheck.length > 0 || globalCheck.length > 0) {
           let reports = models.reportModel.find({
             sid: report.sid
           }).exec();
@@ -602,6 +628,24 @@ export default function (io, models) {
     if(io.p2p.request.session.status.type === 3) {
       let audit = await getAudit(data.aid);
       io.p2p.emit('getAudit', audit);
+    }
+    return;
+  });
+
+  io.p2p.on('getInterventions', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      let obj = data.type === 0 ?
+        await models.reportModel.findOne({
+          _id: data._id
+        }).exec() :
+        await models.auditModel.findOne({
+          _id: data._id
+        }).exec();
+      let interventions = await getInterventions(obj.intervention);
+      io.p2p.emit('getInterventions', {
+        _id: data._id,
+        interventions: interventions
+      });
     }
     return;
   });
@@ -752,7 +796,8 @@ export default function (io, models) {
                     tag: group.tag,
                     locked: false,
                     lockedTick: 0,
-                    totalBalance: Math.floor(totalBalance[0].balance)
+                    totalBalance: Math.floor(totalBalance[0].balance),
+                    intervention: []
                   });
                   stage.reports.push(report._id);
                   await stage.save();
@@ -858,7 +903,8 @@ export default function (io, models) {
                         gained: 0,
                         gid: group._id,
                         short: data.short,
-                        totalBalance: Math.floor(totalBalance[0].balance)
+                        totalBalance: Math.floor(totalBalance[0].balance),
+                        intervention: []
                       });
                       report.audits.push(audit._id);
                       await report.save();
@@ -922,7 +968,7 @@ export default function (io, models) {
           let globalCheck = _.intersectionWith(globalSetting.settingTags, user.tags, (sTag, uTag) => {
             return sTag.equals(uTag);
           })
-          if(supervisorCheck.length > 0 || globalCheck > 0) {
+          if(supervisorCheck.length > 0 || globalCheck.length > 0) {
             await evaluatedAudit(data.report._id, io.p2p.request.session.passport.user);
             await evaluatedReport(data.report._id, data.ignoreTime);
             io.p2p.emit('calcReport', true);
@@ -962,7 +1008,7 @@ export default function (io, models) {
           let globalCheck = _.intersectionWith(globalSetting.settingTags, user.tags, (sTag, uTag) => {
             return sTag.equals(uTag);
           })
-          if(supervisorCheck.length > 0 || globalCheck > 0) {
+          if(supervisorCheck.length > 0 || globalCheck.length > 0) {
             report.grantedValue = data.report.grantedValue;
             report.grantedUser = uid;
             report.grantedDate = now;
@@ -1009,7 +1055,7 @@ export default function (io, models) {
           let globalCheck = _.intersectionWith(globalSetting.settingTags, user.tags, (sTag, uTag) => {
             return sTag.equals(uTag);
           })
-          if(supervisorCheck.length > 0 || globalCheck > 0) {
+          if(supervisorCheck.length > 0 || globalCheck.length > 0) {
             audit.confirm = audit.confirm > 0 ? 0 : now;
             await audit.save();
             io.p2p.emit('confirmAudit', true);
@@ -1191,7 +1237,7 @@ export default function (io, models) {
           if(leaderCheck.length > 0) {
             lockedReport = !report.locked;
           }
-          if(lockedReport || supervisorCheck.length > 0 || globalCheck > 0) {
+          if(lockedReport || supervisorCheck.length > 0 || globalCheck.length > 0) {
             if(report.gained === 0) {
               if(report.visibility) {
                 let stage = await models.stageModel.findOne({
@@ -1246,6 +1292,85 @@ export default function (io, models) {
     return;
   });
 
+  io.p2p.on('addIntervention', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if('passport' in io.p2p.request.session) {
+        if('user' in io.p2p.request.session.passport) {
+          if(data.content !== "") {
+            let now = dayjs().unix();
+            let globalSetting = await models.settingModel.findOne({}).exec();
+            let uid = new ObjectId(io.p2p.request.session.passport.user);
+            let user = await models.userModel.findOne({
+              _id: uid
+            }).exec();
+            let report = undefined;
+            let audit = undefined;
+            let schema = undefined;
+            if(data.type === 0) {
+              report = await models.reportModel.findOne({
+                _id: new ObjectId(data._id)
+              }).exec();
+              schema = await models.schemaModel.findOne({
+                _id: report.sid
+              }).exec();
+            } else {
+              audit = await models.auditModel.findOne({
+                _id: new ObjectId(data._id)
+              }).exec();
+              report = await models.reportModel.findOne({
+                _id: new ObjectId(data.rid)
+              }).exec();
+              schema = await models.schemaModel.findOne({
+                _id: audit.sid
+              }).exec();
+            }
+            let supervisorCheck = _.filter(schema.supervisors, (supervisor) => {
+              return supervisor.equals(user._id);
+            });
+            let globalCheck = _.intersectionWith(globalSetting.settingTags, user.tags, (sTag, uTag) => {
+              return sTag.equals(uTag);
+            })
+            if(supervisorCheck.length > 0 || globalCheck.length > 0) {
+              let intervention = await models.interventionModel.create({
+                tick: now,
+                content: data.content,
+                value: parseInt(Math.floor(data.value)),
+                user: uid
+              });
+              if(data.type === 0) {
+                report.intervention.push(intervention);
+                await report.save();
+              } else {
+                audit.intervention.push(intervention);
+                await audit.save();
+              }
+              let type = data.type === 0 ? "[成果]" : "[評分]";
+              await models.eventlogModel.create({
+                tick: now,
+                type: '報告系統',
+                desc: '人為干預評分' + type,
+                sid: audit === undefined ? report.sid : audit.sid,
+                user: uid
+              });
+              io.p2p.emit('addIntervention', {
+                _id: audit === undefined ? report._id : audit._id,
+                type: data.type
+              });
+              return;
+            }
+          }
+        }
+      }
+    }
+    io.p2p.emit('accessViolation', {
+      where: '評分系統',
+      tick: dayjs().unix(),
+      action: '鎖定報告',
+      loginRequire: false
+    });
+    return;
+  });
+
   io.p2p.on('lockReport', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       if('passport' in io.p2p.request.session) {
@@ -1268,7 +1393,7 @@ export default function (io, models) {
           let globalCheck = _.intersectionWith(globalSetting.settingTags, user.tags, (sTag, uTag) => {
             return sTag.equals(uTag);
           })
-          if(supervisorCheck.length > 0 || globalCheck > 0) {
+          if(supervisorCheck.length > 0 || globalCheck.length > 0) {
             report.locked = data.locked;
             report.lockedTick = now;
             await report.save();
