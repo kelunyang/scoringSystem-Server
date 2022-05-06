@@ -1142,64 +1142,66 @@ export default function (io, models) {
           }), (member) => {
             return member.equals(uid);
           });
-          if(audit.feedbackTick === 0) {
-            if(ownerCheck.length > 0) {
-              let totalBalance = await getBalance([uid], audit.sid);
-              if(totalBalance[0].balance > 0) {
-                if(data.feedback <= totalBalance[0].balance) {
-                  let now = dayjs().unix();
-                  audit.feedback = data.feedback;
-                  audit.feedbackUser = uid;
-                  audit.feedbackTick = now;
-                  await report.save();
-                  await audit.save();
-                  await models.accountingModel.create({
-                    tick: now,
-                    sid: report.sid,
-                    uid: uid,
-                    invalid: 0,
-                    desc: "確認評分結果",
-                    value: (data.feedback * -1)
-                  });
-                  let feedbacked = await models.auditModel.find({
-                    rid: audit.rid,
-                    feedbackTick: { $gt: 0 },
-                    visibility: true
-                  });
-                  if(!stage.matchPoint) {
-                    if(!report.locked) {
-                      let totalGroups = schema.groups.length;
-                      if(schema.tagGroupped) {
-                        let sameGroup = await models.groupModel.find({
-                          tag: group.tag,
-                          sid: schema._id
-                        }).exec();
-                        totalGroups = sameGroup.length;
-                      }
-                      let evaluationGap = Math.ceil(totalGroups * schema.gapRate);
-                      evaluationGap = report.audits.length > evaluationGap ? report.audits.length : evaluationGap;
-                      if(feedbacked.length >= evaluationGap) {
-                        if(report.gained === 0) {
-                          let falseCheck = _.filter(feedbacked, (audit) => {
-                            return audit.short;
-                          });
-                          if(falseCheck.length === 0) {
-                            await evaluatedAudit(report._id, undefined);
-                            await evaluatedReport(report._id, undefined);
+          if(audit.visibility) {
+            if(audit.feedbackTick === 0) {
+              if(ownerCheck.length > 0) {
+                let totalBalance = await getBalance([uid], audit.sid);
+                if(totalBalance[0].balance > 0) {
+                  if(data.feedback <= totalBalance[0].balance) {
+                    let now = dayjs().unix();
+                    audit.feedback = data.feedback;
+                    audit.feedbackUser = uid;
+                    audit.feedbackTick = now;
+                    await report.save();
+                    await audit.save();
+                    await models.accountingModel.create({
+                      tick: now,
+                      sid: report.sid,
+                      uid: uid,
+                      invalid: 0,
+                      desc: "確認評分結果",
+                      value: (data.feedback * -1)
+                    });
+                    let feedbacked = await models.auditModel.find({
+                      rid: audit.rid,
+                      feedbackTick: { $gt: 0 },
+                      visibility: true
+                    });
+                    if(!stage.matchPoint) {
+                      if(!report.locked) {
+                        let totalGroups = schema.groups.length;
+                        if(schema.tagGroupped) {
+                          let sameGroup = await models.groupModel.find({
+                            tag: group.tag,
+                            sid: schema._id
+                          }).exec();
+                          totalGroups = sameGroup.length;
+                        }
+                        let evaluationGap = Math.ceil(totalGroups * schema.gapRate);
+                        evaluationGap = report.audits.length > evaluationGap ? report.audits.length : evaluationGap;
+                        if(feedbacked.length >= evaluationGap) {
+                          if(report.gained === 0) {
+                            let falseCheck = _.filter(feedbacked, (audit) => {
+                              return audit.short;
+                            });
+                            if(falseCheck.length === 0) {
+                              await evaluatedAudit(report._id, undefined);
+                              await evaluatedReport(report._id, undefined);
+                            }
                           }
                         }
                       }
                     }
+                    await models.eventlogModel.create({
+                      tick: now,
+                      type: '報告系統',
+                      desc: '確認評分結果',
+                      sid: report.sid,
+                      user: uid
+                    });
+                    io.p2p.emit('auditFeedback', true);
+                    return;
                   }
-                  await models.eventlogModel.create({
-                    tick: now,
-                    type: '報告系統',
-                    desc: '確認評分結果',
-                    sid: report.sid,
-                    user: uid
-                  });
-                  io.p2p.emit('auditFeedback', true);
-                  return;
                 }
               }
             }
