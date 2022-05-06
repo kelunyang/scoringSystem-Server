@@ -1283,26 +1283,30 @@ export default function (io, models) {
           let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
             return sTag.equals(uTag);
           })
-          if(audition.visibility || supervisorCheck.length > 0 || globalCheck.length > 0) {
-            report.locked = true;
-            await report.save();
-            audition.visibility = false;
-            audition.revokeTick = now;
-            await audition.save();
-            report.audits = _.filter(report.audits, (audit) => {
-              return !audit.equals(audition._id);
-            });
-            report.locked = false;
-            await report.save();
-            await models.eventlogModel.create({
-              tick: now,
-              type: '報告系統',
-              desc: '撤銷互評',
-              sid: report.sid,
-              user: user
-            });
-            io.p2p.emit('rejectAudit', true);
-            return;
+          if(audition.visibility) {
+            if(audition.feedbackTick === 0) {
+              if(supervisorCheck.length > 0 || globalCheck.length > 0) {
+                report.locked = true;
+                await report.save();
+                audition.visibility = false;
+                audition.revokeTick = now;
+                await audition.save();
+                report.audits = _.filter(report.audits, (audit) => {
+                  return !audit.equals(audition._id);
+                });
+                report.locked = false;
+                await report.save();
+                await models.eventlogModel.create({
+                  tick: now,
+                  type: '報告系統',
+                  desc: '撤銷互評',
+                  sid: report.sid,
+                  user: user
+                });
+                io.p2p.emit('rejectAudit', true);
+                return;
+              }
+            }
           }
         }
       }
@@ -1310,7 +1314,7 @@ export default function (io, models) {
     io.p2p.emit('accessViolation', {
       where: '報告系統',
       tick: dayjs().unix(),
-      action: '退回報告',
+      action: '撤銷互評',
       loginRequire: false
     });
     return;
