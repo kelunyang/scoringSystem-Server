@@ -803,5 +803,11 @@ export default async function (models) {
       authRange: [],
       loginRequire: true
     },
+    rejectAudit: {
+      action: '撤回互評',
+      where: '評分模組',
+      authRange: [],
+      loginRequire: true
+    },
   }
 }

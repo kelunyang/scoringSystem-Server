@@ -43,7 +43,9 @@ export default function (mongoose) {
       ref: 'userModel'
     },
     short: Boolean,
-    totalBalance: Number
+    totalBalance: Number,
+    visibility: Boolean,
+    revokeTick: Number
   }, { collection: 'auditDB' });
   return mongoose.model('auditModel', auditModel);
 }

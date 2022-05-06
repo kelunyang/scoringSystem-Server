@@ -51,7 +51,8 @@ export default function (io, models) {
   }
   let getAudits = async (rid) => {
     let audits = await models.auditModel.find({
-      rid: new ObjectId(rid)
+      rid: new ObjectId(rid),
+      visibility: true
     })
     .populate('coworkers', '-password -lineToken -lineCode')
     .exec();
@@ -381,7 +382,8 @@ export default function (io, models) {
         let audits = await models.auditModel.find({
           rid: report._id,
           gained: { $gt: 0 },
-          feedbackUser: { $nin: report.coworkers }
+          feedbackUser: { $nin: report.coworkers },
+          visibility: true
         }).exec();
         let feedbackers = [];
         for(let i=0; i<audits.length; i++) {
@@ -477,7 +479,8 @@ export default function (io, models) {
       _id: report.sid
     }).exec();
     let audits = await models.auditModel.find({
-      _id: { $in: report.audits }
+      _id: { $in: report.audits },
+      visibility: true
     }).sort({
       tick: -1
     }).exec();
@@ -496,7 +499,8 @@ export default function (io, models) {
       if(report.grantedDate === 0) {
         let audits = await models.auditModel.find({
           gained: { $gt: 0 },
-          rid: report._id
+          rid: report._id,
+          visibility: true
         }).exec();
         let auditValues = _.meanBy(audits, (audit) => {
           let score = 0;
@@ -662,6 +666,10 @@ export default function (io, models) {
     if(io.p2p.request.session.status.type === 3) {
       if('passport' in io.p2p.request.session) {
         if('user' in io.p2p.request.session.passport) {
+          let uid = new ObjectId(io.p2p.request.session.passport.user);
+          let user = await models.userModel.findOne({
+            _id: uid
+          }).exec();
           let report = await getReport(data._id);
           let group = await models.groupModel.findOne({
             _id: report.gid,
@@ -689,11 +697,22 @@ export default function (io, models) {
             }
             return score;
           }) : 0;
+          let auditLeaders = [];
+          for(let i=0; i<report.audits.length; i++) {
+            let leaderCheck = await models.groupModel.findOne({
+              _id: report.audits[i].gid,
+              leaders: { $in: [user._id] }
+            }).exec();
+            if(leaderCheck !== null) {
+              auditLeaders.push(report.audits[i]._id);
+            }
+          }
           io.p2p.emit('getReport', {
             report: report,
             isAuthor: group !== null,
             falseAudit: falseAudit.length > 0,
-            auditValues: Math.ceil(auditValues)
+            auditValues: Math.ceil(auditValues),
+            auditLeaders: auditLeaders
           });
         }
       }
@@ -867,7 +886,8 @@ export default function (io, models) {
           if(!report.gid.equals(group._id)) {
             if(stage.replyDisabled === 0 || stage.closed === 0) {
               let audits = await models.auditModel.find({
-                _id: { $in: report.audits }
+                _id: { $in: report.audits },
+                visibility: true
               }).exec();
               let overlapedCheck = _.filter(audits, (audit) => {
                 return audit.gid.equals(group._id);
@@ -904,7 +924,9 @@ export default function (io, models) {
                         gid: group._id,
                         short: data.short,
                         totalBalance: Math.floor(totalBalance[0].balance),
-                        intervention: []
+                        intervention: [],
+                        visibility: true,
+                        revokeTick: 0
                       });
                       report.audits.push(audit._id);
                       await report.save();
@@ -969,6 +991,14 @@ export default function (io, models) {
             return sTag.equals(uTag);
           })
           if(supervisorCheck.length > 0 || globalCheck.length > 0) {
+            let now = dayjs().unix();
+            await models.eventlogModel.create({
+              tick: now,
+              type: '報告系統',
+              desc: '手動要求系統計算報告評分',
+              sid: report.sid,
+              user: user
+            });
             await evaluatedAudit(data.report._id, io.p2p.request.session.passport.user);
             await evaluatedReport(data.report._id, data.ignoreTime);
             io.p2p.emit('calcReport', true);
@@ -1016,6 +1046,13 @@ export default function (io, models) {
             await evaluatedAudit(data.report._id, io.p2p.request.session.passport.user);
             await evaluatedReport(data.report._id, data.ignoreTime);
             io.p2p.emit('setGrant', true);
+            await models.eventlogModel.create({
+              tick: now,
+              type: '報告系統',
+              desc: '手動設定報告評分',
+              sid: report.sid,
+              user: user
+            });
             return;
           }
         }
@@ -1059,6 +1096,13 @@ export default function (io, models) {
             audit.confirm = audit.confirm > 0 ? 0 : now;
             await audit.save();
             io.p2p.emit('confirmAudit', true);
+            await models.eventlogModel.create({
+              tick: now,
+              type: '報告系統',
+              desc: '確認評分有效',
+              sid: report.sid,
+              user: user
+            });
             return;
           }
         }
@@ -1119,7 +1163,8 @@ export default function (io, models) {
                   });
                   let feedbacked = await models.auditModel.find({
                     rid: audit.rid,
-                    feedbackTick: { $gt: 0 }
+                    feedbackTick: { $gt: 0 },
+                    visibility: true
                   });
                   if(!stage.matchPoint) {
                     if(!report.locked) {
@@ -1204,6 +1249,71 @@ export default function (io, models) {
     return;
   });
 
+  io.p2p.on('rejectAudit', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if('passport' in io.p2p.request.session) {
+        if('user' in io.p2p.request.session.passport) {
+          let now = dayjs().unix();
+          let globalSetting = await models.settingModel.findOne({}).exec();
+          let uid = new ObjectId(io.p2p.request.session.passport.user);
+          let user = await models.userModel.findOne({
+            _id: uid
+          }).exec();
+          let audition = await models.auditModel.findOne({
+            _id: new ObjectId(data._id)
+          }).exec();
+          let report = await models.reportModel.findOne({
+            _id: audition.rid
+          }).exec();
+          let schema = await models.schemaModel.findOne({
+            _id: report.sid
+          }).exec();
+          let group = await models.groupModel.findOne({
+            _id: report.gid
+          }).exec();
+          let supervisorCheck = _.filter(schema.supervisors, (supervisor) => {
+            return supervisor.equals(user._id);
+          });
+          let leaderCheck = _.filter(group.leaders, (leader) => {
+            return leader.equals(user._id);
+          });
+          let authorizedTags = _.flatten(globalSetting.settingTags, globalSetting.projectTags)
+          let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
+            return sTag.equals(uTag);
+          })
+          if(audition.visibility || supervisorCheck.length > 0 || globalCheck.length > 0) {
+            report.locked = true;
+            await report.save();
+            audition.visibility = false;
+            audition.revokeTick = now;
+            await audition.save();
+            report.audits = _.filter(report.audits, (audit) => {
+              return !audit.equals(audition._id);
+            });
+            report.locked = false;
+            await report.save();
+            await models.eventlogModel.create({
+              tick: now,
+              type: '報告系統',
+              desc: '撤銷互評',
+              sid: report.sid,
+              user: user
+            });
+            io.p2p.emit('rejectAudit', true);
+            return;
+          }
+        }
+      }
+    }
+    io.p2p.emit('accessViolation', {
+      where: '報告系統',
+      tick: dayjs().unix(),
+      action: '退回報告',
+      loginRequire: false
+    });
+    return;
+  });
+
   io.p2p.on('rejectReport', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       if('passport' in io.p2p.request.session) {
@@ -1244,7 +1354,8 @@ export default function (io, models) {
                   _id: report.tid
                 }).exec();
                 let audits = await models.auditModel.find({
-                  _id: { $in: report.audits }
+                  _id: { $in: report.audits },
+                  visibility: true
                 }).exec();
                 for(let i=0; i<audits.length; i++) {
                   let audit = audits[i];
@@ -1275,6 +1386,13 @@ export default function (io, models) {
                 });
                 await stage.save();
                 await report.save();
+                await models.eventlogModel.create({
+                  tick: now,
+                  type: '報告系統',
+                  desc: '撤銷階段成果',
+                  sid: report.sid,
+                  user: user
+                });
                 io.p2p.emit('rejectReport', true);
                 return;
               }
