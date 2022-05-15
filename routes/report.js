@@ -1271,7 +1271,7 @@ export default function (io, models) {
             _id: report.sid
           }).exec();
           let group = await models.groupModel.findOne({
-            _id: report.gid
+            _id: audition.gid
           }).exec();
           let supervisorCheck = _.filter(schema.supervisors, (supervisor) => {
             return supervisor.equals(user._id);
@@ -1285,7 +1285,7 @@ export default function (io, models) {
           })
           if(audition.visibility) {
             if(audition.feedbackTick === 0) {
-              if(supervisorCheck.length > 0 || globalCheck.length > 0) {
+              if(supervisorCheck.length > 0 || globalCheck.length > 0 || leaderCheck.length > 0) {
                 report.locked = true;
                 await report.save();
                 audition.visibility = false;
