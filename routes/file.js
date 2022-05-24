@@ -870,7 +870,7 @@ export default function (io, models) {
                             } else {
                               useLINE = false;
                             }
-                            useLINE = item['附件'] === "" ? false : useLINE;
+                            useLINE = item['附件'] !== "" ? false : useLINE;
                             if(useLINE) {
                               try {
                                 let sendmsg = await axios.post('https://notify-api.line.me/api/notify', qs.stringify({
