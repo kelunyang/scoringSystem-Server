@@ -825,108 +825,144 @@ export default function (io, models) {
           io.p2p.emit('bulkmsgsampleUploadDone');
           let setting = await models.settingModel.findOne({}).exec();
           let robotSetting = await models.robotModel.findOne({}).exec();
-          let now = dayjs().unix();
-          let readStream = new stream.PassThrough();
-          readStream.end(fileBuffer).pipe(concat((content) => {
-            Papa.parse(stripBOM(content.toString()), {
-              header: true,
-              skipEmptyLines: true,
-              complete: async (result) => {
-                try {
-                  let logDB = [];
-                  let successArray = [];
-                  for(let i=0; i< result.data.length; i++) {
-                    let countWord = "(" + (i+1) + "/" + result.data.length + ")";
-                    let item = result.data[i];
-                    let log = {
-                      email: item['Email'],
-                      msg: "找不到Email"
-                    }
-                    let successlog = {
-                      uid: "",
-                      tick: dayjs().unix(),
-                      status: 0
-                    };
-                    let user = await models.userModel.findOne({
-                      email: item['Email']
-                    }).exec();
-                    if(user !== null) {
-                      successlog.uid = user._id;
-                      io.p2p.emit('bulkmsgsampleReport', user.name + countWord + "發送中");
-                      let useLINE = item['發送方式'] === "L" ? true : false;
-                      if(!('lineToken' in user) || user.lineToken !== undefined) {
-                        useLINE = useLINE ? useLINE : false;
-                      } else {
-                        useLINE = false;
-                      }
-                      if(useLINE) {
-                        try {
-                          let sendmsg = await axios.post('https://notify-api.line.me/api/notify', qs.stringify({
-                            message: item['訊息內容']
-                          }), {
-                            headers: {
-                              Authorization: 'Bearer ' + user.lineToken
-                            },
-                            withCredentials: true
-                          });
-                          if(sendmsg.data.status === 200) {
-                            log.msg = "LINE已送出";
-                            io.p2p.emit('bulkmsgsampleReport', user.name + countWord + "LINE訊息已送出");
-                            successlog.status = 1;
-                          } else {
-                            log.msg = "LINE發生錯誤";
-                            io.p2p.emit('bulkmsgsampleReport', user.name + countWord + "LINE訊息送出失敗");
-                            successlog.status = 0;
-                          }
-                        } catch(e) {
-                          log.msg = "LINE發生錯誤";
-                          io.p2p.emit('bulkmsgsampleReport', user.name + countWord + "LINE訊息送出失敗");
-                          successlog.status = 0;
-                        }
-                      } else {
-                        let transporter = nodemailer.createTransport({
-                          host: robotSetting.mailSMTP,
-                          port: robotSetting.mailPort,
-                          secure: robotSetting.mailSSL,
-                          auth: {
-                            user: robotSetting.mailAccount,
-                            pass: robotSetting.mailPassword,
-                          },
-                        });
-                        try {
-                          await transporter.sendMail({
-                            from: '"' + setting.systemName + '" <' + robotSetting.mailAccount + '>',
-                            to: user.email,
-                            subject: setting.systemName + "：訊息通知",
-                            text: item['訊息內容'], // plain text body
-                            html: marked(item['訊息內容']), // html body
-                          });
-                          log.msg = "Email已送出";
-                          io.p2p.emit('bulkmsgsampleReport', user.name + countWord + "Email已送出");
-                          successlog.status = 1;
-                        } catch(err) {
-                          log.msg = "Email發生錯誤";
-                          io.p2p.emit('bulkmsgsampleReport', user.name + countWord + "Email送出失敗");
-                          successlog.status = 0;
-                        }
-                      }
-                    }
-                    successArray.push(successlog);
-                    logDB.push(log);
-                  }
-                  await models.lineModel.create({ 
-                    tick: dayjs().unix(),
-                    body: "大量發送訊息不紀錄",
-                    log: successArray,
-                    type: 2
-                  });
-                  return io.p2p.emit('bulkmsgSent', logDB); 
-                } catch (e) {
-                  console.dir(e);
-                }
-              }
+          JSZip.loadAsync(fileBuffer).then(async(zip) => {
+            io.p2p.emit('bulkmsgsampleReport', '一共讀入' + (_.values(zip.files)).length + '個檔案');
+            let csvFile = _.find(zip.files, (item) => {
+              return /.csv/.test(item.name);
             });
-          }));
+            if(csvFile !== undefined) {
+              io.p2p.emit('bulkmsgsampleReport', '找到CSV檔案：' + csvFile.name + '！開始讀入');
+              zip
+              .file(csvFile.name)
+              .async("text")
+              .then(async function success(content) {
+                try {
+                  content = stripBOM(content);
+                  let now = dayjs().unix();
+                  let csvContent = Papa.parse(content, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: async (result) => {
+                      try {
+                        let logDB = [];
+                        let successArray = [];
+                        for(let i=0; i< result.data.length; i++) {
+                          let countWord = "(" + (i+1) + "/" + result.data.length + ")";
+                          let item = result.data[i];
+                          let log = {
+                            email: item['Email'],
+                            msg: "找不到Email"
+                          }
+                          let successlog = {
+                            uid: "",
+                            tick: dayjs().unix(),
+                            status: 0
+                          };
+                          let user = await models.userModel.findOne({
+                            email: item['Email']
+                          }).exec();
+                          if(user !== null) {
+                            successlog.uid = user._id;
+                            io.p2p.emit('bulkmsgsampleReport', user.name + countWord + "發送中");
+                            let useLINE = item['發送方式'] === "L" ? true : false;
+                            if(!('lineToken' in user) || user.lineToken !== undefined) {
+                              useLINE = useLINE ? useLINE : false;
+                            } else {
+                              useLINE = false;
+                            }
+                            useLINE = item['附件'] === "" ? false : useLINE;
+                            if(useLINE) {
+                              try {
+                                let sendmsg = await axios.post('https://notify-api.line.me/api/notify', qs.stringify({
+                                  message: item['訊息內容']
+                                }), {
+                                  headers: {
+                                    Authorization: 'Bearer ' + user.lineToken
+                                  },
+                                  withCredentials: true
+                                });
+                                if(sendmsg.data.status === 200) {
+                                  log.msg = "LINE已送出";
+                                  io.p2p.emit('bulkmsgsampleReport', user.name + countWord + "LINE訊息已送出");
+                                  successlog.status = 1;
+                                } else {
+                                  log.msg = "LINE發生錯誤";
+                                  io.p2p.emit('bulkmsgsampleReport', user.name + countWord + "LINE訊息送出失敗");
+                                  successlog.status = 0;
+                                }
+                              } catch(e) {
+                                log.msg = "LINE發生錯誤";
+                                io.p2p.emit('bulkmsgsampleReport', user.name + countWord + "LINE訊息送出失敗");
+                                successlog.status = 0;
+                              }
+                            } else {
+                              let transporter = nodemailer.createTransport({
+                                host: robotSetting.mailSMTP,
+                                port: robotSetting.mailPort,
+                                secure: robotSetting.mailSSL,
+                                auth: {
+                                  user: robotSetting.mailAccount,
+                                  pass: robotSetting.mailPassword,
+                                },
+                              });
+                              try {
+                                let mail = {
+                                  from: '"' + setting.systemName + '" <' + robotSetting.mailAccount + '>',
+                                  to: user.email,
+                                  subject: setting.systemName + "：訊息通知",
+                                  text: item['訊息內容'], // plain text body
+                                  html: marked(item['訊息內容']), // html body
+                                }
+                                if(item["附件"] !== "") {
+                                  let attachment = await zip
+                                  .file(item["附件"])
+                                  .async("nodebuffer");
+                                  mail = {
+                                    from: '"' + setting.systemName + '" <' + robotSetting.mailAccount + '>',
+                                    to: user.email,
+                                    subject: setting.systemName + "：訊息通知",
+                                    text: item['訊息內容'], // plain text body
+                                    html: marked(item['訊息內容']), // html body,
+                                    attachments: [
+                                      {
+                                        filename: item["附件"],
+                                        content: attachment
+                                      }
+                                    ]
+                                  }
+                                };
+                                await transporter.sendMail(mail);
+                                log.msg = "Email已送出";
+                                io.p2p.emit('bulkmsgsampleReport', user.name + countWord + "Email已送出");
+                                successlog.status = 1;
+                              } catch(err) {
+                                log.msg = "Email發生錯誤";
+                                io.p2p.emit('bulkmsgsampleReport', user.name + countWord + "Email送出失敗");
+                                successlog.status = 0;
+                              }
+                            }
+                          }
+                          successArray.push(successlog);
+                          logDB.push(log);
+                        }
+                        await models.lineModel.create({ 
+                          tick: dayjs().unix(),
+                          body: "大量發送訊息不紀錄",
+                          log: successArray,
+                          type: 2
+                        });
+                        return io.p2p.emit('bulkmsgSent', logDB); 
+                      } catch (e) {
+                        console.dir(e);
+                      }
+                    }
+                  });
+                } catch (e) {
+                  io.p2p.emit('bulkmsgsampleReport', '匯入大量訊息發生錯誤（代碼：' + JSON.stringify(e) +'），建議重新下載範例重作，如重複發生，請把代碼複製給管理員');
+                }
+              });
+            }
+          });
           delete files[data.uuid];
         } catch (err) {
           console.dir(err);
