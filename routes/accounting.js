@@ -53,8 +53,8 @@ export default function (io, models) {
     let tagGroup = await models.groupModel.findOne({
       sid: new ObjectId(sid),
       $or:[ 
-        {leaders: { $in: [new ObjectId(uid)] }},
-        {members: { $in: [new ObjectId(uid)] }}
+        {leaders: new ObjectId(uid)},
+        {members: new ObjectId(uid)}
       ]   
     }).exec();
     let groups = await models.groupModel.find({
@@ -151,6 +151,117 @@ export default function (io, models) {
       }
     );
     return await models.accountingModel.aggregate(queryCmd);
+  }
+
+  let updateTotalDeposit = async(tid, userGroup) => {
+    if(userGroup === undefined) {
+      return false;
+    } else {
+      let groupMembers = await models.depositModel.find({
+        gid: userGroup._id,
+        tid: tid
+      }).exec();
+      let joined = _.filter(groupMembers, (member) => {
+        return member.joinTick > 0;
+      });
+      if(joined.length === groupMembers.length) {
+        let accepted = _.filter(joined, (member) => {
+          return member.confirm;
+        });
+        return _.sumBy(accepted, (member) => {
+          return member.value;
+        })
+      }
+      return false;
+    }
+  }
+
+  let getDeposited = async(tid, userGroup) => {
+    if(userGroup === undefined) {
+      return true;
+    } else {
+      let stage = await models.stageModel.findOne({
+        _id: tid
+      }).exec();
+      let deposits = await models.depositModel.find({
+        tid: tid,
+        gid: userGroup._id
+      }).exec();
+      if(deposits.length === 0) {
+        let now = dayjs().unix();
+        let members = _.unionWith(userGroup.members, userGroup.leaders, (userM, userL) => {
+          return (new ObjectId(userM)).equals(new ObjectId(userL));
+        });
+        let depositRequests = [];
+        for(let i=0; i<members.length; i++) {
+          depositRequests.push({
+            tid: tid,
+            uid: members[i],
+            gid: userGroup._id,
+            value: 0,
+            confirmTick: 0,
+            confirm: false,
+            requestTick: now,
+            totalDeposit: 0,
+            joinTick: 0
+          });
+        }
+        await models.depositModel.insertMany(depositRequests);
+      };
+      let now = dayjs().unix();
+      let notConfimed = await models.depositModel.find({
+        tid: tid,
+        gid: userGroup._id,
+        confirmTick: 0,
+        confirm: false,
+        joinTick: 0
+      }).exec();
+      let proceed = notConfimed.length === 0;
+      if(notConfimed.length > 0) {
+        if(stage.endTick < now) {
+          await models.depositModel.updateMany({
+            confirm: false,
+            confirmTick: 0,
+            joinTick: 0
+          }, {
+            confirmTick: now,
+            joinTick: now,
+            value: 0,
+            totalDeposit: 0
+          });
+          let totalDeposit = await updateTotalDeposit(stage._id, userGroup);
+          if(totalDeposit !== false) {
+            await models.depositModel.updateMany({
+              confirm: true,
+              confirmTick: { $gt: 0 },
+              joinTick: { $gt: 0 }
+            }, {
+              totalDeposit: totalDeposit
+            });
+          }
+          proceed = true;
+        }
+      }
+      return proceed;
+    }
+  }
+
+  let getDepositBalance = async(tid, gid) => {
+    let queryCmd = [];
+    queryCmd.push({
+      $match: {
+        gid: gid,
+        tid: tid,
+        invalid: 0
+      }
+    });
+    queryCmd.push({
+      $group: {
+        _id: "$gid",
+        balance: { $sum: "$value"}
+      }
+    });
+    return await models.stageAssetModel.aggregate(queryCmd);
   }
   
   let getBalance = async (uid, sid, type) => {
@@ -376,6 +487,405 @@ export default function (io, models) {
       where: '記帳系統',
       tick: dayjs().unix(),
       action: '退回記帳紀錄',
+      loginRequire: false
+    });
+    return;
+  });
+
+  io.p2p.on('rejectDeposit', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if('passport' in io.p2p.request.session) {
+        if('user' in io.p2p.request.session.passport) {
+          let now = dayjs().unix();
+          let globalSetting = await models.settingModel.findOne({}).exec();
+          let uid = new ObjectId(io.p2p.request.session.passport.user);
+          let user = await models.userModel.findOne({
+            _id: uid
+          }).exec();
+          let accounting = await models.stageAssetModel.findOne({
+            _id: new ObjectId(data._id)
+          }).exec();
+          let schema = await models.schemaModel.findOne({
+            _id: accounting.sid
+          }).exec();
+          let supervisorCheck = _.filter(schema.supervisors, (supervisor) => {
+            return supervisor.equals(user._id);
+          });
+          let authorizedTags = _.flatten(globalSetting.settingTags, globalSetting.projectTags)
+          let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
+            return sTag.equals(uTag);
+          })
+          if(supervisorCheck.length > 0 || globalCheck.length > 0) {
+            accounting.invalid = accounting.invalid === 0 ? now : 0;
+            await accounting.save();
+            await models.eventlogModel.create({
+              tick: now,
+              type: '押金系統',
+              desc: '撤銷押金紀錄',
+              sid: schema._id,
+              user: user
+            });
+            io.p2p.emit('rejectDeposit', true);
+            return;
+          }
+        }
+      }
+    }
+    io.p2p.emit('accessViolation', {
+      where: '記帳系統',
+      tick: dayjs().unix(),
+      action: '退回記帳紀錄',
+      loginRequire: false
+    });
+    return;
+  });
+
+  io.p2p.on('getDeposit', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if('user' in io.p2p.request.session.passport) {
+        let globalSetting = await models.settingModel.findOne({}).exec();
+        let uid = new ObjectId(io.p2p.request.session.passport.user);
+        let user = await models.userModel.findOne({
+          _id: uid
+        }).exec();
+        let stage = await models.stageModel.findOne({
+          _id: new ObjectId(data.tid)
+        }).exec();
+        let schema = await models.schemaModel.findOne({
+          _id: stage.sid
+        }).exec();
+        let supervisorCheck = _.filter(schema.supervisors, (supervisor) => {
+          return supervisor.equals(user._id);
+        });
+        let authorizedTags = _.flatten(globalSetting.settingTags, globalSetting.projectTags)
+        let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
+          return sTag.equals(uTag);
+        })
+        let queryUser = user._id;
+        let isSupervisor = false;
+        if(supervisorCheck.length > 0 || globalCheck.length > 0) {
+          queryUser = data.qUser === undefined ? undefined : new ObjectId(data.qUser);
+          isSupervisor = true;
+        }
+        let userGroup = queryUser !== undefined ? await models.groupModel.findOne({
+          sid: schema._id,
+          $or: [
+            { members: queryUser },
+            { leaders: queryUser }
+          ]
+        }).exec() : undefined;
+        await getDeposited(stage._id, userGroup);
+        let queryCmd = [];
+        if(userGroup === undefined) {
+          queryCmd.push({
+            $match: {
+              tid: stage._id
+            }
+          });
+        } else {
+          if(!isSupervisor) {
+            let leaderCheck = await models.groupModel.find({
+              _id: userGroup._id,
+              sid: schema._id,
+              leaders: queryUser
+            }).exec();
+            isSupervisor = leaderCheck.length > 0;
+          }
+          queryCmd.push({
+            $match: {
+              tid: stage._id,
+              gid: userGroup._id
+            }
+          });
+        }
+        queryCmd.push({
+          $lookup: {
+            from: 'userDB',
+            as: '_id',
+            let: { assetUID: "$uid" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $eq: ["$$assetUID", "$_id"]
+                  }
+                }
+              },
+              { 
+                $project: { 
+                  lineCode: 0,
+                  lineDate: 0,
+                  lineToken: 0,
+                  password: 0
+                }
+              }
+            ],
+            as: 'uid'
+          },
+        });
+        queryCmd.push({
+          $unwind: '$uid'
+        });
+        queryCmd.push({
+          $group: {
+            _id: "$_id",
+            tid: { $first: "$tid" },
+            uid: { $first: "$uid" },
+            gid: { $first: "$gid"},
+            value: { $first: "$value"},
+            confirmTick: { $first: "$confirmTick"},
+            confirm: { $first: "$confirm"},
+            joinTick: { $first: "$joinTick"},
+            requestTick: { $first: "$requestTick"},
+            totalDeposit: { $first: "$totalDeposit"},
+          }
+        });
+        let deposits = await models.depositModel.aggregate(queryCmd);
+        io.p2p.emit('getDeposit', {
+          deposits: deposits,
+          isSupervisor: isSupervisor
+        });
+        return;
+      }
+    }
+    io.p2p.emit('accessViolation', {
+      where: '記帳系統',
+      tick: dayjs().unix(),
+      action: '確認押金狀態',
+      loginRequire: false
+    });
+    return;
+  });
+
+  io.p2p.on('getDepositBalance', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if('user' in io.p2p.request.session.passport) {
+        let globalSetting = await models.settingModel.findOne({}).exec();
+        let uid = new ObjectId(io.p2p.request.session.passport.user);
+        let user = await models.userModel.findOne({
+          _id: uid
+        }).exec();
+        let stage = await models.stageModel.findOne({
+          _id: new ObjectId(data.tid)
+        }).exec();
+        let schema = await models.schemaModel.findOne({
+          _id: stage.sid
+        }).exec();
+        let supervisorCheck = _.filter(schema.supervisors, (supervisor) => {
+          return supervisor.equals(user._id);
+        });
+        let authorizedTags = _.flatten(globalSetting.settingTags, globalSetting.projectTags)
+        let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
+          return sTag.equals(uTag);
+        })
+        let queryUser = user._id;
+        let proceed = false;
+        if(supervisorCheck.length > 0 || globalCheck.length > 0) {
+          queryUser = data.qUser === undefined ? undefined : new ObjectId(data.qUser);
+          proceed = true;
+        }
+        let userGroup = queryUser !== undefined ? await models.groupModel.findOne({
+          sid: schema._id,
+          $or: [
+            { members: queryUser },
+            { leaders: queryUser }
+          ]
+        }).exec() : undefined;
+        if(await getDeposited(stage._id, userGroup)) {
+          if(!proceed) {
+            let depositCheck = await models.depositModel.findOne({
+              uid: queryUser,
+              tid: stage._id
+            }).exec();
+            if(depositCheck === null || !depositCheck.confirm ) userGroup = undefined;
+          }
+          let balance = userGroup === undefined ? 0 : (await getDepositBalance(stage._id, userGroup._id))[0].balance;
+          io.p2p.emit('getDepositBalance', balance);
+          return;
+        }
+      }
+    }
+    return;
+  });
+
+  io.p2p.on('getDepositAccounting', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if('user' in io.p2p.request.session.passport) {
+        let globalSetting = await models.settingModel.findOne({}).exec();
+        let uid = new ObjectId(io.p2p.request.session.passport.user);
+        let user = await models.userModel.findOne({
+          _id: uid
+        }).exec();
+        let stage = await models.stageModel.findOne({
+          _id: new ObjectId(data.tid)
+        }).exec();
+        let schema = await models.schemaModel.findOne({
+          _id: stage.sid
+        }).exec();
+        let supervisorCheck = _.filter(schema.supervisors, (supervisor) => {
+          return supervisor.equals(user._id);
+        });
+        let authorizedTags = _.flatten(globalSetting.settingTags, globalSetting.projectTags)
+        let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
+          return sTag.equals(uTag);
+        })
+        let userGroup = undefined;
+        if(supervisorCheck.length > 0 || globalCheck.length > 0) {
+          userGroup = new ObjectId(data.gid);
+        } else {
+          let group = await models.groupModel.findOne({
+            sid: schema._id,
+            $or: [
+              { members: uid },
+              { leaders: uid }
+            ]
+          }).exec();
+          if(group._id.equals(new ObjectId(data.gid))) {
+            userGroup = new ObjectId(data.gid);
+          }
+        }
+        if(await getDeposited(stage._id, userGroup)) {
+          let accounting = userGroup === undefined ? [] : await models.stageAssetModel.find({
+            tid: stage._id,
+            gid: userGroup,
+            invalid: 0
+          }).exec();
+          io.p2p.emit('getDepositAccounting', accounting);
+          return;
+        }
+      }
+    }
+    io.p2p.emit('accessViolation', {
+      where: '記帳系統',
+      tick: dayjs().unix(),
+      action: '取得回合押金明細',
+      loginRequire: false
+    });
+    return;
+  });
+
+  io.p2p.on('joinStage', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if('user' in io.p2p.request.session.passport) {
+        let globalSetting = await models.settingModel.findOne({}).exec();
+        let uid = new ObjectId(io.p2p.request.session.passport.user);
+        let user = await models.userModel.findOne({
+          _id: uid
+        }).exec();
+        let stage = await models.stageModel.findOne({
+          _id: new ObjectId(data.tid)
+        }).exec();
+        let schema = await models.schemaModel.findOne({
+          _id: stage.sid
+        }).exec();
+        let supervisorCheck = _.filter(schema.supervisors, (supervisor) => {
+          return supervisor.equals(user._id);
+        });
+        let authorizedTags = _.flatten(globalSetting.settingTags, globalSetting.projectTags)
+        let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
+          return sTag.equals(uTag);
+        })
+        let queryUser = user._id;
+        if(supervisorCheck.length > 0 || globalCheck.length > 0) {
+          queryUser = data.queryUser === undefined ? undefined : new ObjectId(data.queryUser);
+        } else {
+          if(data.queryUser !== undefined) {
+            let user = new ObjectId(data.queryUser);
+            if(!user.equals(uid)) {
+              let leaderCheck = await models.groupModel.find({
+                sid: schema._id,
+                leaders: uid,
+                members: user
+              }).exec();
+              if(leaderCheck.length > 0) {
+                queryUser = user;
+              }
+            }
+          }
+        }
+        queryUser = await models.userModel.findOne({
+          _id: queryUser
+        }).exec();
+        let userGroup = queryUser !== undefined ? await models.groupModel.findOne({
+          sid: schema._id,
+          $or: [
+            { members: queryUser._id },
+            { leaders: queryUser._id }
+          ]
+        }).exec() : undefined;
+        if(!await getDeposited(stage._id, userGroup)) {
+          if(userGroup !== undefined) {
+            let now = dayjs().unix();
+            let deposit = await models.depositModel.findOne({
+              tid: stage._id,
+              uid: queryUser._id
+            }).exec();
+            if(deposit.joinTick === 0) {
+              if(now <= stage.endTick) {
+                if(deposit.confirmTick === 0) {
+                  if(!deposit.confirm) {
+                    let userBalance = await getBalance([queryUser], stage.sid, 0);
+                    if(userBalance[0].balance >= stage.defaultDeposit) {
+                      deposit.confirmTick = now;
+                      deposit.confirm = data.confirm;
+                      deposit.value = data.confirm ? stage.defaultDeposit : 0;
+                      deposit.totalDeposit = 0;
+                      deposit.joinTick = now;
+                      await deposit.save();
+                      if(data.confirm) {
+                        await models.stageAssetModel.create({
+                          tid: stage._id,
+                          value: stage.defaultDeposit,
+                          gid: userGroup._id,
+                          sid: schema._id,
+                          invalid: 0,
+                          comment: queryUser.name + "加入回合",
+                          tick: now
+                        });
+                        await models.accountingModel.create({
+                          uid: queryUser._id,
+                          value: stage.defaultDeposit * -1,
+                          gid: userGroup._id,
+                          sid: schema._id,
+                          invalid: 0,
+                          desc: queryUser.name + "加入回合",
+                          tick: now
+                        });
+                        await models.eventlogModel.create({
+                          tick: now,
+                          type: '記帳系統',
+                          desc: queryUser.name + "加入回合",
+                          sid: schema._id,
+                          user: queryUser._id
+                        });
+                      }
+                      let totalDeposit = await updateTotalDeposit(stage._id, userGroup);
+                      if(totalDeposit !== false) {
+                        await models.depositModel.updateMany({
+                          confirm: true,
+                          confirmTick: { $gt: 0 },
+                          joinTick: { $gt: 0 }
+                        }, {
+                          totalDeposit: totalDeposit
+                        });
+                      }
+                      io.p2p.emit('joinStage', true);
+                      return
+                    }
+                  }
+                }
+              }
+            }
+          }
+          io.p2p.emit('joinStage', false);
+          return;
+        }
+      }
+    }
+    io.p2p.emit('accessViolation', {
+      where: '記帳系統',
+      tick: dayjs().unix(),
+      action: '加入回合',
       loginRequire: false
     });
     return;

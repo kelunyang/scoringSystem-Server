@@ -1,4 +1,4 @@
-import { ObjectID } from 'mongodb';
+import { ObjectId } from 'mongodb';
 
 export default function (mongoose) {
   let schema = mongoose.Schema;
@@ -11,19 +11,21 @@ export default function (mongoose) {
     order: Number,
     value: Number,
     sid: {
-      type: ObjectID,
+      type: ObjectId,
       ref: 'schemaModel'
     },
     reports: [
       {
-        type: ObjectID,
+        type: ObjectId,
         ref: 'reportModel'
       }
     ],
     desc: String,
     matchPoint: Boolean,
     closed: Number,
-    replyDisabled: Number
+    replyDisabled: Number,
+    defaultDeposit: Number,
+    depositStep: Number,
   }, { collection: 'stageDB' });
   return mongoose.model('stageModel', stageModel);
 }

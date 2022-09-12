@@ -1,4 +1,4 @@
-import { ObjectID } from 'mongodb';
+import { ObjectId } from 'mongodb';
 
 export default function (mongoose) {
   let schema = mongoose.Schema;
@@ -6,32 +6,32 @@ export default function (mongoose) {
     content: String,
     tick: Number,
     sid: {
-      type: ObjectID,
+      type: ObjectId,
       ref: 'schemaModel'
     },
     tid: {
-      type: ObjectID,
+      type: ObjectId,
       ref: 'stageModel'
     },
     gid: {
-      type: ObjectID,
+      type: ObjectId,
       ref: 'groupModel'
     },
     coworkers: [
       {
-        type: ObjectID,
+        type: ObjectId,
         ref: 'userModel'
       }
     ],
     audits: [
       {
-        type: ObjectID,
+        type: ObjectId,
         ref: 'auditModel'
       }
     ],
     value: Number,
     grantedUser: {
-      type: ObjectID,
+      type: ObjectId,
       ref: 'userModel'
     },
     grantedDate: Number,
@@ -40,7 +40,7 @@ export default function (mongoose) {
     visibility: Boolean,
     revokeTick: Number,
     tag: {
-      type: ObjectID,
+      type: ObjectId,
       ref: 'tagModel'
     },
     locked: Boolean,
@@ -48,7 +48,7 @@ export default function (mongoose) {
     totalBalance: Number,
     intervention: [
       {
-        type: ObjectID,
+        type: ObjectId,
         ref: 'interventionModel'
       }
     ]

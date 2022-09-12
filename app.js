@@ -48,6 +48,8 @@ import schemaMJS from './models/schemaModel.js';
 import stageMJS from './models/stageModel.js';
 import eventlogMJS from './models/eventlogModel.js';
 import interventionMJS from './models/interventionModel.js';
+import depositMJS from './models/depositModel.js';
+import stageAssetMJS from './models/stageAssetModel.js';
 const eventlogModel = eventlogMJS(mongoose);
 const settingModel = settingMJS(mongoose);
 const robotModel = robotMJS(mongoose);
@@ -69,6 +71,8 @@ const groupModel = groupMJS(mongoose);
 const auditModel = auditMJS(mongoose);
 const accountingModel = accountingMJS(mongoose);
 const interventionModel = interventionMJS(mongoose);
+const depositModel = depositMJS(mongoose);
+const stageAssetModel = stageAssetMJS(mongoose);
 const modelList = {
   messageModel: systemmessageModel,
   logModel: logModel,
@@ -90,7 +94,9 @@ const modelList = {
   auditModel: auditModel,
   accountingModel: accountingModel,
   eventlogModel: eventlogModel,
-  interventionModel: interventionModel
+  interventionModel: interventionModel,
+  stageAssetModel: stageAssetModel,
+  depositModel: depositModel
 };
 
 //controller

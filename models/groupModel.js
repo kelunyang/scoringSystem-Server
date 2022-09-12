@@ -1,4 +1,4 @@
-import { ObjectID } from 'mongodb';
+import { ObjectId } from 'mongodb';
 
 export default function (mongoose) {
   let schema = mongoose.Schema;
@@ -7,23 +7,23 @@ export default function (mongoose) {
     modTick: Number,
     locked: Boolean,
     sid: {
-      type: ObjectID,
+      type: ObjectId,
       ref: 'schemaModel'
     },
     leaders: [
       {
-        type: ObjectID,
+        type: ObjectId,
         ref: 'userModel'
       }
     ],
     members: [
       {
-        type: ObjectID,
+        type: ObjectId,
         ref: 'userModel'
       }
     ],
     tag: {
-      type: ObjectID,
+      type: ObjectId,
       ref: 'tagModel'
     }
   }, { collection: 'groupDB' });

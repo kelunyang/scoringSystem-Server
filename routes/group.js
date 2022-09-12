@@ -235,15 +235,29 @@ export default function (io, models) {
           {leaders: { $in: [new ObjectId(io.p2p.request.session.passport.user)] }},
           {members: { $in: [new ObjectId(io.p2p.request.session.passport.user)] }}
         ],
-        sid: new ObjectId(data)
+        sid: new ObjectId(data.sid)
       })
       .populate('members')
       .populate('leaders')
       .exec();
-      let coworkers = group === null ? [] : _.unionWith(group.members, group.leaders, (member, leader) => {
-        return member._id.equals(leader._id);
-      });
-      io.p2p.emit('getCoworkers', coworkers);
+      if(group !== null) {
+        let joinedWorkers = await models.depositModel.find({
+          gid: group._id,
+          tid: new ObjectId(data.tid),
+          confirm: true,
+          confirmTick: { $gt: 0 },
+          joinTick: { $gt: 0 }
+        }).exec();
+        let coworkers = group === null ? [] : _.unionWith(group.members, group.leaders, (member, leader) => {
+          return member._id.equals(leader._id);
+        });
+        coworkers = _.intersectionWith(coworkers, joinedWorkers, (listed, joined) => {
+          return listed._id.equals(joined.uid);
+        });
+        io.p2p.emit('getCoworkers', _.filter(coworkers, (user) => { return !user._id.equals(new ObjectId(io.p2p.request.session.passport.user)) }));
+      } else {
+        io.p2p.emit('getCoworkers', []);
+      }
       return;
     }
   });
@@ -484,9 +498,17 @@ export default function (io, models) {
             return sTag.equals(uTag);
           });
           if(supervisorCheck.length > 0 || globalCheck.length > 0) {
-            let tag = new ObjectId(data.tag);
+            let tag = data.tag === "" ? undefined : new ObjectId(data.tag);
             for(let i=0; i<data.groupCount; i++) {
-              let group = await models.groupModel.create({ 
+              let group = tag === undefined ? 
+              await models.groupModel.create({ 
+                createTick: now,
+                modTick: now,
+                members: [],
+                leaders: [],
+                locked: false,
+                sid: sid,
+              }) : await models.groupModel.create({ 
                 createTick: now,
                 modTick: now,
                 members: [],
@@ -728,8 +750,8 @@ export default function (io, models) {
           let group = await models.groupModel.findOne({
             sid: new ObjectId(data),
             $or:[ 
-              {leaders: { $in: [uid] }},
-              {members: { $in: [uid] }}
+              {leaders: uid },
+              {members: uid }
             ]
           }).exec();
           io.p2p.emit('getOwnGroup', group);

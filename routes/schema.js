@@ -325,6 +325,7 @@ export default function (io, models) {
                 value: stage.value,
                 sid: stage.sid,
                 closed: stage.closed,
+                depositStep: stage.depositStep,
                 replyDisabled: stage.replyDisabled,
                 reports: _.map(reports, (report) => {
                   return report._id;
@@ -375,7 +376,6 @@ export default function (io, models) {
               stages: [],
               gapRate: data.gapRate,
               initCapital: data.initCapital,
-              betRate: data.betRate,
               status: data.status,
               leaderRate: data.leaderRate,
               workerRate: data.workerRate,
@@ -497,7 +497,6 @@ export default function (io, models) {
             schema.name = data.name;
             schema.supervisors = supervisors;
             schema.initCapital = data.initCapital;
-            schema.betRate = data.betRate;
             schema.status = data.status;
             schema.gapRate = data.gapRate;
             schema.leaderCapital = data.leaderCapital;
@@ -595,18 +594,18 @@ export default function (io, models) {
           if(globalCheck.length > 0 || supervisorCheck.length > 0) {
             let now = dayjs().unix();
             let currentUserID = new ObjectId(io.p2p.request.session.passport.user);
-            let startTick = now;
-            let endTick = now;
             stage.modTick = now;
             stage.name = data.name;
             stage.desc = turndownService.turndown(data.desc);
+            stage.defaultDeposit = data.defaultDeposit;
+            stage.depositStep = data.depositStep;
             stage.startTick = data.startTick;
             stage.endTick = data.endTick;
             stage.order = data.order;
             stage.value = data.value;
             stage.matchPoint = data.matchPoint;
             await stage.save();
-            let event = await models.eventlogModel.create({
+            await models.eventlogModel.create({
               tick: now,
               type: '活動管理',
               desc: '修改活動階段',

@@ -25,7 +25,6 @@ export default function (mongoose) {
       }
     ],
     initCapital: Number,
-    betRate: Number,
     gapRate: Number,
     status: Number,
     memberRate: Number,

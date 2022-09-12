@@ -809,5 +809,41 @@ export default async function (models) {
       authRange: [],
       loginRequire: true
     },
+    getDeposit: {
+      action: '檢查押金',
+      where: '帳本模組',
+      authRange: [],
+      loginRequire: true
+    },
+    getDepositBalance: {
+      action: '取得押金',
+      where: '帳本模組',
+      authRange: [],
+      loginRequire: true
+    },
+    getDepositAccounting: {
+      action: '取得押金使用狀況',
+      where: '帳本模組',
+      authRange: [],
+      loginRequire: true
+    },
+    joinStage: {
+      action: '加入回合',
+      where: '帳本模組',
+      authRange: [],
+      loginRequire: true
+    },
+    getDeposited: {
+      action: '取得押金狀態',
+      where: '帳本模組',
+      authRange: [],
+      loginRequire: true
+    },
+    rejectDeposit: {
+      action: '退回押金',
+      where: '帳本模組',
+      authRange: [],
+      loginRequire: true
+    },
   }
 }
