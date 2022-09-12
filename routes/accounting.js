@@ -220,6 +220,8 @@ export default function (io, models) {
       if(notConfimed.length > 0) {
         if(stage.endTick < now) {
           await models.depositModel.updateMany({
+            tid: stage._id,
+            gid: userGroup._id,
             confirm: false,
             confirmTick: 0,
             joinTick: 0
@@ -232,6 +234,8 @@ export default function (io, models) {
           let totalDeposit = await updateTotalDeposit(stage._id, userGroup);
           if(totalDeposit !== false) {
             await models.depositModel.updateMany({
+              tid: stage._id,
+              gid: userGroup._id,
               confirm: true,
               confirmTick: { $gt: 0 },
               joinTick: { $gt: 0 }
@@ -862,6 +866,8 @@ export default function (io, models) {
                       let totalDeposit = await updateTotalDeposit(stage._id, userGroup);
                       if(totalDeposit !== false) {
                         await models.depositModel.updateMany({
+                          tid: stage._id,
+                          gid: userGroup._id,
                           confirm: true,
                           confirmTick: { $gt: 0 },
                           joinTick: { $gt: 0 }

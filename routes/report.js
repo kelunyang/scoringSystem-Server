@@ -275,27 +275,30 @@ export default function (io, models) {
         for(let u=0; u< audit.coworkers.length; u++) {
           let user = audit.coworkers[u];
           let deposit = await models.depositModel.findOne({
+            tid: stage._id,
             joinTick: { $gt: 0 },
             confirm: true,
             confirmTick: { $gt: 0 },
             uid: user
           }).exec();
-          let depositPercentage = deposit.value / deposit.totalDeposit;
-          await models.accountingModel.create({
-            tick: now,
-            sid: schema._id,
-            uid: user,
-            invalid: 0,
-            desc: "評分前(" + (i+1) + "/" + audits.length + ")名得點（負責人），按照押金占比可實拿[" + Math.ceil(depositPercentage * 100) + "%]" + shortTip,
-            value: await calcIntervention((valueAudit * schema.workerRate) * depositPercentage, audit)
-          });
-          await models.eventlogModel.create({
-            tick: now,
-            type: '評分系統',
-            desc: '發點數',
-            sid: schema._id,
-            user: user
-          });
+          if(user !== null) {
+            let depositPercentage = deposit.value / deposit.totalDeposit;
+            await models.accountingModel.create({
+              tick: now,
+              sid: schema._id,
+              uid: user,
+              invalid: 0,
+              desc: "評分前(" + (i+1) + "/" + audits.length + ")名得點（負責人），按照押金占比可實拿[" + Math.ceil(depositPercentage * 100) + "%]" + shortTip,
+              value: await calcIntervention((valueAudit * schema.workerRate) * depositPercentage, audit)
+            });
+            await models.eventlogModel.create({
+              tick: now,
+              type: '評分系統',
+              desc: '發點數',
+              sid: schema._id,
+              user: user
+            });
+          }
         }
         let normalMembers = _.differenceWith(members, audit.coworkers, (member, coworker) => {
           return member.equals(coworker);
@@ -306,6 +309,7 @@ export default function (io, models) {
         for(let i=0; i<normalMembers.length; i++) {
           let member = normalMembers[i];
           let deposit = await models.depositModel.findOne({
+            tid: stage._id,
             joinTick: { $gt: 0 },
             confirm: true,
             confirmTick: { $gt: 0 },
@@ -339,6 +343,7 @@ export default function (io, models) {
         for(let i=0; i<leaders.length; i++) {
           let member = leaders[i];
           let deposit = await models.depositModel.findOne({
+            tid: stage._id,
             joinTick: { $gt: 0 },
             confirm: true,
             confirmTick: { $gt: 0 },
@@ -428,6 +433,7 @@ export default function (io, models) {
         for(let u=0; u< report.coworkers.length; u++) {
           let user = report.coworkers[u];
           let deposit = await models.depositModel.findOne({
+            tid: stage._id,
             joinTick: { $gt: 0 },
             confirm: true,
             confirmTick: { $gt: 0 },
@@ -460,6 +466,7 @@ export default function (io, models) {
           if(audits[i].feedbackTick > 0) {
             let user = audits[i].feedbackUser;
             let deposit = await models.depositModel.findOne({
+              tid: stage._id,
               joinTick: { $gt: 0 },
               confirm: true,
               confirmTick: { $gt: 0 },
@@ -497,6 +504,7 @@ export default function (io, models) {
         for(let i=0; i<normalMembers.length; i++) {
           let member = normalMembers[i];
           let deposit = await models.depositModel.findOne({
+            tid: stage._id,
             joinTick: { $gt: 0 },
             confirm: true,
             confirmTick: { $gt: 0 },
@@ -530,6 +538,7 @@ export default function (io, models) {
         for(let i=0; i<leaders.length; i++) {
           let leader = leaders[i];
           let deposit = await models.depositModel.findOne({
+            tid: stage._id,
             joinTick: { $gt: 0 },
             confirm: true,
             confirmTick: { $gt: 0 },
@@ -1685,6 +1694,7 @@ export default function (io, models) {
                 let expired = timeValue > 0 ? 1 : 0;
                 timeValue = data.value === 0 ? 0 : timeValue;
                 let deposit = await models.depositModel.findOne({
+                  tid: stage._id,
                   joinTick: { $gt: 0 },
                   confirm: true,
                   confirmTick: { $gt: 0 },
@@ -1747,6 +1757,7 @@ export default function (io, models) {
                 let expired = timeValue > 0 ? 1 : 0;
                 timeValue = data.value === 0 ? 0 : timeValue;
                 let deposit = await models.depositModel.findOne({
+                  tid: stage._id,
                   joinTick: { $gt: 0 },
                   confirm: true,
                   confirmTick: { $gt: 0 },
@@ -1832,6 +1843,7 @@ export default function (io, models) {
                   });
                 } else {
                   let deposit = await models.depositModel.findOne({
+                    tid: stage._id,
                     joinTick: { $gt: 0 },
                     confirm: true,
                     confirmTick: { $gt: 0 },

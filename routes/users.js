@@ -628,12 +628,12 @@ export default function (io, models) {
             }).exec();
             let memberGroups = await models.groupModel.find({
               $or:[ 
-                {leaders: { $in: [uid] }},
-                {members: { $in: [uid] }}
+                {leaders: uid},
+                {members: uid}
               ]
             }).exec();
             let leaderGroups = await models.groupModel.find({
-              leaders: { $in: [uid] }
+              leaders: uid
             }).exec();
             for(let i=0; i<memberGroups.length; i++) {
               let group = memberGroups[i];
