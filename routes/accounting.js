@@ -191,11 +191,11 @@ export default function (io, models) {
       let members = _.unionWith(userGroup.members, userGroup.leaders, (userM, userL) => {
         return (new ObjectId(userM)).equals(new ObjectId(userL));
       });
-      if(deposits.length !== members.length) {
+      let notDeposited = _.differenceWith(members, deposits, (member, deposited) => {
+        return member._id.equals(deposited.uid);
+      });
+      if(notDeposited.length > 0) {
         let depositRequests = [];
-        let notDeposited = _.differenceWith(members, deposits, (member, deposited) => {
-          return member._id.equals(deposited.uid);
-        });
         for(let i=0; i<notDeposited.length; i++) {
           depositRequests.push({
             tid: tid,
