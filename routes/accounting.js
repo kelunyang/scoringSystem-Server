@@ -187,16 +187,19 @@ export default function (io, models) {
         tid: tid,
         gid: userGroup._id
       }).exec();
-      if(deposits.length === 0) {
-        let now = dayjs().unix();
-        let members = _.unionWith(userGroup.members, userGroup.leaders, (userM, userL) => {
-          return (new ObjectId(userM)).equals(new ObjectId(userL));
-        });
+      let now = dayjs().unix();
+      let members = _.unionWith(userGroup.members, userGroup.leaders, (userM, userL) => {
+        return (new ObjectId(userM)).equals(new ObjectId(userL));
+      });
+      if(deposits.length !== members.length) {
         let depositRequests = [];
-        for(let i=0; i<members.length; i++) {
+        let notDeposited = _.differenceWith(members, deposits, (member, deposited) => {
+          return member._id.equals(deposited.uid);
+        });
+        for(let i=0; i<notDeposited.length; i++) {
           depositRequests.push({
             tid: tid,
-            uid: members[i],
+            uid: notDeposited[i],
             gid: userGroup._id,
             value: 0,
             confirmTick: 0,
@@ -208,7 +211,6 @@ export default function (io, models) {
         }
         await models.depositModel.insertMany(depositRequests);
       };
-      let now = dayjs().unix();
       let notConfimed = await models.depositModel.find({
         tid: tid,
         gid: userGroup._id,
