@@ -898,6 +898,71 @@ export default function (io, models) {
     });
     return;
   });
+  io.p2p.on('revokeDeposit', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if('user' in io.p2p.request.session.passport) {
+        let now = dayjs().unix();
+        let globalSetting = await models.settingModel.findOne({}).exec();
+        let uid = new ObjectId(io.p2p.request.session.passport.user);
+        let user = await models.userModel.findOne({
+          _id: uid
+        }).exec();
+        let stage = await models.stageModel.findOne({
+          _id: new ObjectId(data.tid)
+        }).exec();
+        if(stage.endTick > now) {
+          let schema = await models.schemaModel.findOne({
+            _id: stage.sid
+          }).exec();
+          let supervisorCheck = _.filter(schema.supervisors, (supervisor) => {
+            return supervisor.equals(user._id);
+          });
+          let authorizedTags = _.flatten(globalSetting.settingTags, globalSetting.projectTags)
+          let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
+            return sTag.equals(uTag);
+          })
+          let leaderCheck = await models.groupModel.find({
+            sid: schema._id,
+            leaders: uid
+          }).exec();
+          let queryUser = await models.userModel.findOne({
+            _id: new ObjectId(data.user)
+          }).exec();
+          if(queryUser !== null) {
+            if(supervisorCheck.length > 0 || leaderCheck.length > 0 || globalCheck.length > 0) {
+              let deposit = await models.depositModel.findOne({
+                tid: stage._id,
+                uid: queryUser._id
+              }).exec();
+              if(deposit !== null) {
+                deposit.joinTick = 0;
+                deposit.confirm = false;
+                deposit.confirmTick = 0;
+                await deposit.save();
+                await models.eventlogModel.create({
+                  tick: now,
+                  type: '記帳系統',
+                  desc: queryUser.name + "回合狀態被重置（原本不加入回合）",
+                  sid: schema._id,
+                  user: queryUser._id
+                });
+                io.p2p.emit('revokeDeposit', true);
+                io.p2p.emit('joinStage', true);
+                return;
+              }
+            }
+          }
+        }
+      }
+    }
+    io.p2p.emit('accessViolation', {
+      where: '記帳系統',
+      tick: dayjs().unix(),
+      action: '重設未押注者',
+      loginRequire: false
+    });
+    return;
+  });
 
   return router;
 }

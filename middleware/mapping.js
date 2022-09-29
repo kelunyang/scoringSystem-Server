@@ -845,5 +845,11 @@ export default async function (models) {
       authRange: [],
       loginRequire: true
     },
+    revokeDeposit: {
+      action: '重設未押注者',
+      where: '帳本模組',
+      authRange: [],
+      loginRequire: true
+    },
   }
 }
