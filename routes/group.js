@@ -344,6 +344,13 @@ export default function (io, models) {
                   value: schema.initCapital
                 });
               }
+              let removeTOBE = _.differenceWith(group.members, members, (oldMember, newMember) => {
+                return oldMember._id.equals(newMember._id);
+              });
+              await models.depositModel.deleteMany({
+                uid: { $in: removeTOBE },
+                gid: group._id
+              });
               group.members = members;
               group.modTick = now;
               await group.save();
@@ -572,6 +579,9 @@ export default function (io, models) {
                 return !sgroup._id.equals(group._id);
               });
               await schema.save();
+              await models.depositModel.deleteMany({
+                gid: group._id
+              });
               group = await models.groupModel.deleteOne({
                 _id: group._id
               }).exec();

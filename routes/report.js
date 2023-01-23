@@ -195,6 +195,7 @@ export default function (io, models) {
         tick: { $first: "$tick"},
         tid: { $first: "$tid"},
         value: { $first: "$value"},
+        locked: { $first: "$locked"},
         visibility: { $first: "$visibility"},
         intervention: { $first: "$intervention"}
       }
@@ -241,9 +242,9 @@ export default function (io, models) {
   let depositAudit = async(stage, audits, schema, report) => {
     let now = dayjs().unix();
     audits = _.orderBy(audits, ['tick'], ['asc']);
-    let rankRate = audits.length;
     for(let i=0; i< audits.length; i++) {
       let audit = audits[i];
+      let rankRate = audits.length - i;
       let shortTip = audit.short ? "[負評]" : "";
       let group = await models.groupModel.findOne({
         _id: audit.gid
@@ -372,7 +373,6 @@ export default function (io, models) {
         audit.gained = now;
         await audit.save();
       }
-      rankRate--;
     }
   }
 
@@ -1686,26 +1686,28 @@ export default function (io, models) {
                 { leaders: uid }
               ]
             }).exec();
-            if(await depositStatus(userGroup._id, stage._id, uid)) {
-              let totalBalance = await getDepositBalance(stage._id, userGroup._id);
-              if(_.inRange(data.value, stage.depositStep, totalBalance[0].balance+0.1)) {
-                let timeValue = Math.ceil((stage.endTick - now) / 60 / 60);
-                timeValue = timeValue > 0 ? timeValue : 0;
-                let expired = timeValue > 0 ? 1 : 0;
-                timeValue = data.value === 0 ? 0 : timeValue;
-                let deposit = await models.depositModel.findOne({
-                  tid: stage._id,
-                  joinTick: { $gt: 0 },
-                  confirm: true,
-                  confirmTick: { $gt: 0 },
-                  uid: uid
-                }).exec();
-                let depositPercentage = deposit.value / deposit.totalDeposit;
-                let previewScore = Math.ceil((((data.value * schema.workerRate) * stage.value * expired) + timeValue + data.value) * depositPercentage);
-                io.p2p.emit('previewReport', {
-                  query: data.value,
-                  score: previewScore
-                });
+            if(userGroup !== null) {
+              if(await depositStatus(userGroup._id, stage._id, uid)) {
+                let totalBalance = await getDepositBalance(stage._id, userGroup._id);
+                if(_.inRange(data.value, stage.depositStep, totalBalance[0].balance+0.1)) {
+                  let timeValue = Math.ceil((stage.endTick - now) / 60 / 60);
+                  timeValue = timeValue > 0 ? timeValue : 0;
+                  let expired = timeValue > 0 ? 1 : 0;
+                  timeValue = data.value === 0 ? 0 : timeValue;
+                  let deposit = await models.depositModel.findOne({
+                    tid: stage._id,
+                    joinTick: { $gt: 0 },
+                    confirm: true,
+                    confirmTick: { $gt: 0 },
+                    uid: uid
+                  }).exec();
+                  let depositPercentage = deposit.value / deposit.totalDeposit;
+                  let previewScore = Math.ceil((((data.value * schema.workerRate) * stage.value * expired) + timeValue + data.value) * depositPercentage);
+                  io.p2p.emit('previewReport', {
+                    query: data.value,
+                    score: previewScore
+                  });
+                }
               }
             }
             return;
