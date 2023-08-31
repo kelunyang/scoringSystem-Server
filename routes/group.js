@@ -326,7 +326,7 @@ export default function (io, models) {
               return member.equals(grouped);
             });
             if(memberOverlaped.length === 0) {
-              let loners = await getLoners(data.sid, undefined, undefined);
+              /*let loners = await getLoners(data.sid, undefined, undefined);
               loners = _.differenceWith(loners, group.leaders, (loner, leader) => {
                 return leader.equals(loner._id);
               });
@@ -343,7 +343,7 @@ export default function (io, models) {
                   invalid: 0,
                   value: schema.initCapital
                 });
-              }
+              }*/
               let removeTOBE = _.differenceWith(group.members, members, (oldMember, newMember) => {
                 return oldMember._id.equals(newMember._id);
               });
@@ -423,7 +423,7 @@ export default function (io, models) {
               return leader.equals(grouped);
             });
             if(leaderOverlaped.length === 0) {
-              let loners = await getLoners(data.sid, undefined, undefined);
+              /*let loners = await getLoners(data.sid, undefined, undefined);
               loners = _.differenceWith(loners, group.members, (loner, member) => {
                 return member.equals(loner._id);
               });
@@ -440,7 +440,7 @@ export default function (io, models) {
                   invalid: 0,
                   value: schema.initCapital
                 });
-              }
+              }*/
               group.leaders = leaders;
               group.modTick = now;
               await group.save();

@@ -851,5 +851,23 @@ export default async function (models) {
       authRange: [],
       loginRequire: true
     },
+    setBonus: {
+      action: '發放獎勵點數',
+      where: '帳本模組',
+      authRange: [],
+      loginRequire: true
+    },
+    queryBonus: {
+      action: '查詢獎勵點數',
+      where: '帳本模組',
+      authRange: [],
+      loginRequire: true
+    },
+    rejectBonusAccounting: {
+      action: '取消獎勵點數',
+      where: '帳本模組',
+      authRange: [],
+      loginRequire: true
+    },
   }
 }

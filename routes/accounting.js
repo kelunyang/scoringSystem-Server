@@ -450,6 +450,276 @@ export default function (io, models) {
     return;
   });
 
+  io.p2p.on('setBonus', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if('passport' in io.p2p.request.session) {
+        if('user' in io.p2p.request.session.passport) {
+          let now = dayjs().unix();
+          let globalSetting = await models.settingModel.findOne({}).exec();
+          let currentUserID = new ObjectId(io.p2p.request.session.passport.user);
+          let sid = new ObjectId(data.sid);
+          let user = await models.userModel.findOne({
+            _id: currentUserID
+          }).exec();
+          let schema = await models.schemaModel.findOne({
+            _id: sid
+          }).exec();
+          let supervisorCheck = _.filter(schema.supervisors, (supervisor) => {
+            return supervisor.equals(user._id);
+          });
+          let authorizedTags = _.flatten(globalSetting.settingTags, globalSetting.projectTags)
+          let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
+            return sTag.equals(uTag);
+          });
+          if(supervisorCheck.length > 0 || globalCheck.length > 0) {
+            let gids = _.map(data.gid, (id) => {
+              return new ObjectId(id);
+            })
+            let queryResult = await models.groupModel.aggregate([
+              {
+                $match: {
+                  _id: { $in: gids },
+                  sid: sid
+                }
+              },
+              {
+                $project: {
+                  combinedIds: { $concatArrays: ["$leaders", "$members"] }
+                }
+              },
+              {
+                $unwind: "$combinedIds"
+              },
+              {
+                $group: {
+                  _id: null,
+                  combinedIds: { $addToSet: "$combinedIds" }
+                }
+              },
+              {
+                $unwind: "$combinedIds"
+              },
+              {
+                $replaceRoot: { newRoot: { combinedId: "$combinedIds" } }
+              },
+              {
+                $group: {
+                  _id: null,
+                  combinedIds: { $push: "$combinedId" }
+                }
+              },
+              {
+                $project: {
+                  _id: 0,
+                  combinedIds: 1
+                }
+              }
+            ]);
+            var flatCombinedIds = _.flatten(queryResult.map(item => item.combinedIds));
+            let accountingDocuments = flatCombinedIds.map(user => ({
+              tick: now,
+              desc: data.desc,
+              sid: sid,
+              uid: user,
+              invalid: 0,
+              value: Number(data.value)
+            }));
+            
+            await models.accountingModel.insertMany(accountingDocuments);            
+            await models.eventlogModel.create({
+              tick: now,
+              type: '記帳系統',
+              desc: '發送獎金給' + flatCombinedIds.length + "人，每個人拿" + Number(data.value) + "，名義為" + data.desc,
+              sid: sid,
+              user: user._id
+            });
+            io.p2p.emit('setBonus', true);
+            return;
+          }
+        }
+      }
+    }
+    io.p2p.emit('accessViolation', {
+      where: '記帳系統',
+      tick: dayjs().unix(),
+      action: '設定用戶特殊點數',
+      loginRequire: true
+    });
+    return;
+  });
+
+  io.p2p.on('queryBonus', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if('passport' in io.p2p.request.session) {
+        if('user' in io.p2p.request.session.passport) {
+          let globalSetting = await models.settingModel.findOne({}).exec();
+          let currentUserID = new ObjectId(io.p2p.request.session.passport.user);
+          let sid = new ObjectId(data.sid);
+          let user = await models.userModel.findOne({
+            _id: currentUserID
+          }).exec();
+          let schema = await models.schemaModel.findOne({
+            _id: sid
+          }).exec();
+          let supervisorCheck = _.filter(schema.supervisors, (supervisor) => {
+            return supervisor.equals(user._id);
+          });
+          let authorizedTags = _.flatten(globalSetting.settingTags, globalSetting.projectTags)
+          let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
+            return sTag.equals(uTag);
+          });
+          if(supervisorCheck.length > 0 || globalCheck.length > 0) {
+            let gids = _.map(data.gid, (id) => {
+              return new ObjectId(id);
+            })
+            let queryResult = await models.groupModel.aggregate([
+              {
+                $match: {
+                  _id: { $in: gids },
+                  sid: sid
+                }
+              },
+              {
+                $project: {
+                  combinedIds: {
+                    $concatArrays: ["$leaders", "$members"]
+                  }
+                }
+              },
+              {
+                $unwind: "$combinedIds"
+              },
+              {
+                $group: {
+                  _id: null,
+                  combinedIds: { $addToSet: "$combinedIds" }
+                }
+              },
+              {
+                $project: {
+                  _id: 0,
+                  combinedIds: 1
+                }
+              },
+              {
+                $lookup: {
+                  from: "accountingDB",
+                  let: { uids: "$combinedIds" },
+                  pipeline: [
+                    {
+                      $match: {
+                        $expr: {
+                          $and: [
+                            { $in: ["$uid", "$$uids"] },
+                            { $eq: ["$invalid", 0] },
+                            { $regexMatch: { input: "$desc", regex: data.desc, options: "i" } }
+                          ]
+                        },
+                        sid: sid
+                      }
+                    },
+                    {
+                      $lookup: {
+                        from: "userDB",
+                        localField: "uid",
+                        foreignField: "_id",
+                        as: "user"
+                      }
+                    },
+                    {
+                      $project: {
+                        _id: 1,
+                        tick: 1,
+                        sid: 1,
+                        uid: 1,
+                        value: 1,
+                        desc: 1,
+                        invalid: 1,
+                        __v: 1,
+                        user: { $arrayElemAt: ["$user", 0] } // 將 user 陣列轉換為物件
+                      }
+                    }
+                  ],
+                  as: "accountingResults"
+                }
+              },
+              {
+                $project: {
+                  accountingResults: 1
+                }
+              }
+            ]);
+            var flatAccountingResults = _.flatten(queryResult.map(item => item.accountingResults));
+            io.p2p.emit('queryBonus', flatAccountingResults);
+            return;
+          }
+        }
+      }
+    }
+    io.p2p.emit('accessViolation', {
+      where: '記帳系統',
+      tick: dayjs().unix(),
+      action: '查詢用戶特殊點數',
+      loginRequire: true
+    });
+    return;
+  });
+
+  io.p2p.on('rejectBonusAccounting', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if('passport' in io.p2p.request.session) {
+        if('user' in io.p2p.request.session.passport) {
+          let now = dayjs().unix();
+          let globalSetting = await models.settingModel.findOne({}).exec();
+          let uid = new ObjectId(io.p2p.request.session.passport.user);
+          let sid = new ObjectId(data.sid);
+          let user = await models.userModel.findOne({
+            _id: uid
+          }).exec();
+          let schema = await models.schemaModel.findOne({
+            _id: sid
+          }).exec();
+          let supervisorCheck = _.filter(schema.supervisors, (supervisor) => {
+            return supervisor.equals(user._id);
+          });
+          let authorizedTags = _.flatten(globalSetting.settingTags, globalSetting.projectTags)
+          let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
+            return sTag.equals(uTag);
+          })
+          if(supervisorCheck.length > 0 || globalCheck.length > 0) {
+            let aids = _.map(data.aids, (aid) => {
+              return new ObjectId(aid);
+            })
+            await models.accountingModel.updateMany(
+              { 
+                _id: { $in: aids },
+                desc: { $regex: data.desc, $options: "i" },
+                sid: sid
+              },
+              { $set: { invalid: now } }
+            )
+            await models.eventlogModel.create({
+              tick: now,
+              type: '記帳系統',
+              desc: '撤銷特殊獎金紀錄，關鍵字為：' + data.desc,
+              sid: sid,
+              user: user._id
+            });
+            io.p2p.emit('rejectBonusAccounting', true);
+            return;
+          }
+        }
+      }
+    }
+    io.p2p.emit('accessViolation', {
+      where: '記帳系統',
+      tick: dayjs().unix(),
+      action: '撤銷特殊獎金紀錄',
+      loginRequire: false
+    });
+    return;
+  });
+
   io.p2p.on('rejectAccounting', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       if('passport' in io.p2p.request.session) {
@@ -481,7 +751,7 @@ export default function (io, models) {
               type: '記帳系統',
               desc: '撤銷記帳紀錄',
               sid: schema._id,
-              user: user
+              user: user._id
             });
             io.p2p.emit('rejectAccounting', true);
             return;
