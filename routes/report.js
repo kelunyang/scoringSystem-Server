@@ -63,7 +63,87 @@ export default function (io, models) {
     });
     return await models.stageAssetModel.aggregate(queryCmd);
   }
-  let getBalance = async (user, tid) => {
+  let getUserBalance = async (uid, sid, type) => {
+    let queryCmd = [];
+    queryCmd.push({
+      $match: {
+        invalid: 0
+      }
+    });
+    queryCmd.push({
+      $match: {
+        uid: uid
+      }
+    });
+    if(sid !== undefined) {
+      queryCmd.push({
+        $match: {
+          sid: new ObjectId(sid)
+        }
+      });
+    }
+    if(type === 0) {
+      queryCmd.push(
+        {
+          $group: {
+            _id: "$sid",
+            balance: {
+              $sum: "$value"
+            }
+          }
+        }
+      );
+      queryCmd.push({
+        $lookup: {
+          from: 'schemaDB',
+          localField: 'sid',
+          foreignField: '_id',
+          as: 'sid'
+        },
+      });
+    } else {
+      queryCmd.push(
+        {
+          $group: {
+            _id: "$uid",
+            balance: {
+              $sum: "$value"
+            }
+          }
+        }
+      );
+      queryCmd.push({
+        $lookup: {
+          from: 'userDB',
+          as: '_id',
+          let: { assetUID: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ["$$assetUID", "$_id"]
+                }
+              }
+            },
+            { 
+              $project: { 
+                lineCode: 0,
+                lineDate: 0,
+                lineToken: 0,
+                password: 0
+              }
+            }
+          ],
+          as: 'uid'
+        },
+      },  {
+        $unwind: '$uid'
+      });
+      queryCmd.push({ $limit: 1 });
+    }
+    return (await models.accountingModel.aggregate(queryCmd))[0] || null;
+  }
+  /*let getBalance = async (user, tid) => {
     let depositConfirm = await models.depositModel.findOne({
       uid: new ObjectId(user),
       joinTick: { $gt: 0 },
@@ -90,7 +170,7 @@ export default function (io, models) {
       })
       return await models.stageAssetModel.aggregate(queryCmd);
     }
-  }
+  }*/
   let getAudits = async (rid) => {
     let audits = await models.auditModel.find({
       rid: new ObjectId(rid),
@@ -465,14 +545,14 @@ export default function (io, models) {
         for(let i=0; i<audits.length; i++) {
           if(audits[i].feedbackTick > 0) {
             let user = audits[i].feedbackUser;
-            let deposit = await models.depositModel.findOne({
+            /*let deposit = await models.depositModel.findOne({
               tid: stage._id,
               joinTick: { $gt: 0 },
               confirm: true,
               confirmTick: { $gt: 0 },
               uid: user
             }).exec();
-            let depositPercentage = deposit.value / deposit.totalDeposit;
+            let depositPercentage = deposit.value / deposit.totalDeposit;*/
             feedbackers.push(user);
             let feedbackRate = (audits[i].feedback / report.grantedValue).toFixed(2);
             await models.accountingModel.create({
@@ -480,8 +560,8 @@ export default function (io, models) {
               sid: schema._id,
               uid: user,
               invalid: 0,
-              desc: "報告得點（確認評分者）" + rankWord + ignoreTip + "，可得" + Math.ceil(valueWorker * feedbackRate) + "點，實拿點數為回合押金占比的" + Math.ceil(depositPercentage * 100) + "%",
-              value: Math.ceil(valueWorker * feedbackRate * depositPercentage)
+              desc: "報告得點（確認評分者）" + rankWord + ignoreTip + "，可得" + Math.ceil(valueWorker * feedbackRate) + "點",
+              value: Math.ceil(valueWorker * feedbackRate)
             });
             await models.eventlogModel.create({
               tick: now,
@@ -1256,76 +1336,67 @@ export default function (io, models) {
           }), (member) => {
             return member.equals(uid);
           });
+          let totalBalance = await getUserBalance(uid, schema._id, 0);
           if(audit.visibility) {
             if(audit.feedbackTick === 0) {
               if(ownerCheck.length > 0) {
-                let userGroup = await models.groupModel.findOne({
-                  sid: schema._id,
-                  $or: [
-                    { members: uid },
-                    { leaders: uid }
-                  ]
-                }).exec();
-                if(await depositStatus(userGroup._id, stage._id, uid)) {
-                  let totalBalance = await getDepositBalance(stage._id, userGroup._id);
-                  if(totalBalance[0].balance >= stage.depositStep) {
-                    if(totalBalance[0].balance >= stage.depositStep) {
-                      if(_.inRange(data.feedback, stage.depositStep, totalBalance[0].balance+0.1)) {
-                        let now = dayjs().unix();
-                        audit.feedback = data.feedback;
-                        audit.feedbackUser = uid;
-                        audit.feedbackTick = now;
-                        await report.save();
-                        await audit.save();
-                        await models.stageAssetModel.create({
-                          tick: now,
-                          sid: report.sid,
-                          tid: stage._id,
-                          gid: group._id,
-                          invalid: 0,
-                          comment: "確認評分結果",
-                          value: (data.feedback * -1)
-                        });
-                        let feedbacked = await models.auditModel.find({
-                          rid: audit.rid,
-                          feedbackTick: { $gt: 0 },
-                          visibility: true
-                        });
-                        if(!stage.matchPoint) {
-                          if(!report.locked) {
-                            let totalGroups = schema.groups.length;
-                            if(schema.tagGroupped) {
-                              let sameGroup = await models.groupModel.find({
-                                tag: group.tag,
-                                sid: schema._id
-                              }).exec();
-                              totalGroups = sameGroup.length;
-                            }
-                            let evaluationGap = Math.ceil(totalGroups * schema.gapRate);
-                            evaluationGap = report.audits.length > evaluationGap ? report.audits.length : evaluationGap;
-                            if(feedbacked.length >= evaluationGap) {
-                              if(report.gained === 0) {
-                                let falseCheck = _.filter(feedbacked, (audit) => {
-                                  return audit.short;
-                                });
-                                if(falseCheck.length === 0) {
-                                  await evaluatedAudit(report._id, undefined);
-                                  await evaluatedReport(report._id, undefined);
-                                }
+                if(totalBalance !== null) {
+                  if(totalBalance.balance > 0) {
+                    if(_.inRange(data.feedback, stage.depositStep, totalBalance.balance)) {
+                      let now = dayjs().unix();
+                      audit.feedback = data.feedback;
+                      audit.feedbackUser = uid;
+                      audit.feedbackTick = now;
+                      await report.save();
+                      await audit.save();
+                      await models.stageAssetModel.create({
+                        tick: now,
+                        sid: report.sid,
+                        tid: stage._id,
+                        gid: group._id,
+                        invalid: 0,
+                        comment: "確認評分結果",
+                        value: (data.feedback * -1)
+                      });
+                      let feedbacked = await models.auditModel.find({
+                        rid: audit.rid,
+                        feedbackTick: { $gt: 0 },
+                        visibility: true
+                      });
+                      if(!stage.matchPoint) {
+                        if(!report.locked) {
+                          let totalGroups = schema.groups.length;
+                          if(schema.tagGroupped) {
+                            let sameGroup = await models.groupModel.find({
+                              tag: group.tag,
+                              sid: schema._id
+                            }).exec();
+                            totalGroups = sameGroup.length;
+                          }
+                          let evaluationGap = Math.ceil(totalGroups * schema.gapRate);
+                          evaluationGap = report.audits.length > evaluationGap ? report.audits.length : evaluationGap;
+                          if(feedbacked.length >= evaluationGap) {
+                            if(report.gained === 0) {
+                              let falseCheck = _.filter(feedbacked, (audit) => {
+                                return audit.short;
+                              });
+                              if(falseCheck.length === 0) {
+                                await evaluatedAudit(report._id, undefined);
+                                await evaluatedReport(report._id, undefined);
                               }
                             }
                           }
                         }
-                        await models.eventlogModel.create({
-                          tick: now,
-                          type: '報告系統',
-                          desc: '確認評分結果',
-                          sid: report.sid,
-                          user: uid
-                        });
-                        io.p2p.emit('auditFeedback', true);
-                        return;
                       }
+                      await models.eventlogModel.create({
+                        tick: now,
+                        type: '報告系統',
+                        desc: '確認評分結果',
+                        sid: report.sid,
+                        user: uid
+                      });
+                      io.p2p.emit('auditFeedback', true);
+                      return;
                     }
                   }
                 }
@@ -1743,34 +1814,29 @@ export default function (io, models) {
             let report = await models.reportModel.findOne({
               _id: audit.rid
             }).exec();
-            let userGroup = await models.groupModel.findOne({
-              sid: schema._id,
-              $or: [
-                { members: uid },
-                { leaders: uid }
-              ]
-            }).exec();
-            if(await depositStatus(userGroup._id, stage._id, uid)) {
-              let totalBalance = await getDepositBalance(stage._id, userGroup._id);
-              if(_.inRange(data.value, stage.depositStep, totalBalance[0].balance+0.1)) {
-                let timeValue = Math.ceil((stage.endTick - now) / 60 / 60);
-                timeValue = Math.ceil((data.feedback / data.value) * timeValue);
-                timeValue = timeValue > 0 ? timeValue : 0;
-                let expired = timeValue > 0 ? 1 : 0;
-                timeValue = data.value === 0 ? 0 : timeValue;
-                let deposit = await models.depositModel.findOne({
-                  tid: stage._id,
-                  joinTick: { $gt: 0 },
-                  confirm: true,
-                  confirmTick: { $gt: 0 },
-                  uid: uid
-                }).exec();
-                let depositPercentage = deposit.value / deposit.totalDeposit;
-                let previewScore = Math.ceil((((report.value * schema.workerRate) * stage.value * expired) + timeValue + data.value) * (data.feedback / report.value).toFixed(2) * depositPercentage);
-                io.p2p.emit('previewFeedback', {
-                  query: data.feedback,
-                  score: previewScore
-                });
+            let totalBalance = await getUserBalance(uid, schema._id, 0);
+            if(totalBalance !== null) {
+              if(totalBalance.balance > 0) {
+                if(_.inRange(data.value, stage.depositStep, totalBalance.balance+0.1)) {
+                  let timeValue = Math.ceil((stage.endTick - now) / 60 / 60);
+                  timeValue = Math.ceil((data.feedback / data.value) * timeValue);
+                  timeValue = timeValue > 0 ? timeValue : 0;
+                  let expired = timeValue > 0 ? 1 : 0;
+                  timeValue = data.value === 0 ? 0 : timeValue;
+                  let deposit = await models.depositModel.findOne({
+                    tid: stage._id,
+                    joinTick: { $gt: 0 },
+                    confirm: true,
+                    confirmTick: { $gt: 0 },
+                    uid: uid
+                  }).exec();
+                  //let depositPercentage = deposit.value / deposit.totalDeposit;
+                  let previewScore = Math.ceil((((report.value * schema.workerRate) * stage.value * expired) + timeValue + data.value) * (data.feedback / report.value).toFixed(2));
+                  io.p2p.emit('previewFeedback', {
+                    query: data.feedback,
+                    score: previewScore
+                  });
+                }
               }
             }
             return;
