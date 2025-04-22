@@ -7,6 +7,81 @@ import TurndownService from 'turndown';
 const turndownService = new TurndownService();
 
 export default function (io, models) {
+  let getDeposited = async(tid, userGroup) => {
+    if(userGroup === undefined) {
+      return true;
+    } else {
+      let stage = await models.stageModel.findOne({
+        _id: tid
+      }).exec();
+      let deposits = await models.depositModel.find({
+        tid: tid,
+        gid: userGroup._id
+      }).exec();
+      let now = dayjs().unix();
+      let members = _.unionWith(userGroup.members, userGroup.leaders, (userM, userL) => {
+        return (new ObjectId(userM)).equals(new ObjectId(userL));
+      });
+      let notDeposited = _.differenceWith(members, deposits, (member, deposited) => {
+        return member._id.equals(deposited.uid);
+      });
+      if(notDeposited.length > 0) {
+        let depositRequests = [];
+        for(let i=0; i<notDeposited.length; i++) {
+          depositRequests.push({
+            tid: tid,
+            uid: notDeposited[i],
+            gid: userGroup._id,
+            value: 0,
+            confirmTick: 0,
+            confirm: false,
+            requestTick: now,
+            totalDeposit: 0,
+            joinTick: 0
+          });
+        }
+        await models.depositModel.insertMany(depositRequests);
+      };
+      let notConfimed = await models.depositModel.find({
+        tid: tid,
+        gid: userGroup._id,
+        confirmTick: 0,
+        confirm: false,
+        joinTick: 0
+      }).exec();
+      let proceed = notConfimed.length === 0;
+      if(notConfimed.length > 0) {
+        if(stage.endTick < now) {
+          await models.depositModel.updateMany({
+            tid: stage._id,
+            gid: userGroup._id,
+            confirm: false,
+            confirmTick: 0,
+            joinTick: 0
+          }, {
+            confirmTick: now,
+            joinTick: now,
+            value: 0,
+            totalDeposit: 0
+          });
+          let totalDeposit = await updateTotalDeposit(stage._id, userGroup);
+          if(totalDeposit !== false) {
+            await models.depositModel.updateMany({
+              tid: stage._id,
+              gid: userGroup._id,
+              confirm: true,
+              confirmTick: { $gt: 0 },
+              joinTick: { $gt: 0 }
+            }, {
+              totalDeposit: totalDeposit
+            });
+          }
+          proceed = true;
+        }
+      }
+      return proceed;
+    }
+  }
   let depositStatus = async(gid,tid,uid) => {
     let groupStatus = await models.depositModel.find({
       tid: tid,
@@ -904,6 +979,50 @@ export default function (io, models) {
     return;
   });
 
+  io.p2p.on('getUserBalance', async (data) => {
+    if(io.p2p.request.session.status.type === 3) {
+      if('user' in io.p2p.request.session.passport) {
+        let globalSetting = await models.settingModel.findOne({}).exec();
+        let uid = new ObjectId(io.p2p.request.session.passport.user);
+        let user = await models.userModel.findOne({
+          _id: uid
+        }).exec();
+        let stage = await models.stageModel.findOne({
+          _id: new ObjectId(data.tid)
+        }).exec();
+        let schema = await models.schemaModel.findOne({
+          _id: stage.sid
+        }).exec();
+        let supervisorCheck = _.filter(schema.supervisors, (supervisor) => {
+          return supervisor.equals(user._id);
+        });
+        let authorizedTags = _.flatten(globalSetting.settingTags, globalSetting.projectTags)
+        let globalCheck = _.intersectionWith(authorizedTags, user.tags, (sTag, uTag) => {
+          return sTag.equals(uTag);
+        })
+        let queryUser = user._id;
+        let proceed = false;
+        if(supervisorCheck.length > 0 || globalCheck.length > 0) {
+          queryUser = data.qUser === undefined ? undefined : new ObjectId(data.qUser);
+          proceed = true;
+        }
+        let userGroup = queryUser !== undefined ? await models.groupModel.findOne({
+          sid: schema._id,
+          $or: [
+            { members: queryUser },
+            { leaders: queryUser }
+          ]
+        }).exec() : undefined;
+        if(await getDeposited(stage._id, userGroup)) {
+          let balance = await getUserBalance(uid, schema._id, 0);
+          io.p2p.emit('getUserBalance', balance);
+          return;
+        }
+      }
+    }
+    return;
+  });
+
   io.p2p.on('getReports', async (data) => {
     if(io.p2p.request.session.status.type === 3) {
       if('passport' in io.p2p.request.session) {
@@ -1349,7 +1468,15 @@ export default function (io, models) {
                       audit.feedbackTick = now;
                       await report.save();
                       await audit.save();
-                      await models.stageAssetModel.create({
+                      await models.accountingModel.create({
+                        tick: now,
+                        sid: report.sid,
+                        uid: uid,
+                        invalid: 0,
+                        desc: "確認評分結果",
+                        value: (data.feedback * -1)
+                      });
+                      /*await models.stageAssetModel.create({
                         tick: now,
                         sid: report.sid,
                         tid: stage._id,
@@ -1357,7 +1484,7 @@ export default function (io, models) {
                         invalid: 0,
                         comment: "確認評分結果",
                         value: (data.feedback * -1)
-                      });
+                      });*/
                       let feedbacked = await models.auditModel.find({
                         rid: audit.rid,
                         feedbackTick: { $gt: 0 },

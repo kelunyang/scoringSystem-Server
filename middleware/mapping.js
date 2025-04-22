@@ -821,6 +821,12 @@ export default async function (models) {
       authRange: [],
       loginRequire: true
     },
+    getUserBalance: {
+      action: '取得用戶錢包餘額',
+      where: '帳本模組',
+      authRange: [],
+      loginRequire: true
+    },
     getDepositAccounting: {
       action: '取得押金使用狀況',
       where: '帳本模組',
